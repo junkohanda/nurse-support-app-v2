@@ -873,67 +873,15 @@ const NurseApp = ({ user, onSignOut }) => {
   };
 
   // =====================================================
-  // 最新情報タブ
+  // 最新情報タブ（準備中）
   // =====================================================
   const NewsTab = () => {
-    const fetchNews = async () => {
-      setIsLoadingNews(true);
-      try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: `${userSettings.profession || '看護師'}、${userSettings.department || '一般病棟'}向けの最新の看護情報を5つリストアップしてください。JSONフォーマットで返してください: {"articles": [{"title": "...", "description": "...", "url": "..."}]}`
-            }],
-            tools: [{ type: 'web_search_20250305', name: 'web_search' }]
-          })
-        });
-        const data = await response.json();
-        const textContent = data.content.find(item => item.type === 'text');
-        if (textContent) {
-          const parsed = JSON.parse(textContent.text.replace(/```json|```/g, '').trim());
-          setNewsArticles(parsed.articles || []);
-        }
-      } catch (error) {
-        alert('記事の取得に失敗しました。もう一度お試しください。');
-      } finally {
-        setIsLoadingNews(false);
-      }
-    };
-
-    useEffect(() => {
-      if (activeTab === 'news' && userSettings.profession && newsArticles.length === 0) fetchNews();
-    }, [activeTab]);
-
     return (
       <div className="space-y-4">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-lg">{userSettings.profession || '看護師'}・{userSettings.department || '一般'}向け最新情報</h3>
-            <button onClick={fetchNews} disabled={isLoadingNews}
-              className="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 flex items-center gap-2 disabled:bg-gray-400">
-              <RefreshCw size={16} className={isLoadingNews ? 'animate-spin' : ''} /> 更新
-            </button>
-          </div>
-          {isLoadingNews ? (
-            <div className="text-center py-8 text-gray-600">記事を検索中...</div>
-          ) : newsArticles.length === 0 ? (
-            <div className="text-center py-8 text-gray-600">「更新」ボタンを押して最新情報を取得してください</div>
-          ) : (
-            <div className="space-y-3">
-              {newsArticles.map((article, index) => (
-                <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition">
-                  <h4 className="font-semibold text-blue-600 mb-2">{article.title}</h4>
-                  <p className="text-sm text-gray-700 mb-2">{article.description}</p>
-                  {article.url && <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">記事を読む →</a>}
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="bg-white p-8 rounded-lg shadow text-center">
+          <Newspaper size={48} className="mx-auto text-gray-300 mb-4" />
+          <h3 className="font-semibold text-lg text-gray-600 mb-2">最新情報機能は準備中です</h3>
+          <p className="text-sm text-gray-500">近日公開予定です。しばらくお待ちください。</p>
         </div>
       </div>
     );
