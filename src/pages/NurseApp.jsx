@@ -35,6 +35,7 @@ const NurseApp = ({ user, onSignOut }) => {
   });
   const [newsArticles, setNewsArticles] = useState([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [todayMood, setTodayMood] = useState(null); // 今日記録済みのmood（1-5）
 
   const initialTerms = [
     { term: 'BP',   full_name: 'Blood Pressure',                      meaning: '血圧' },
@@ -62,7 +63,8 @@ const NurseApp = ({ user, onSignOut }) => {
 
   const loadData = async () => {
     const uid = user.id;
-    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes] = await Promise.all([
+    const today = new Date().toISOString().split('T')[0];
+    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes] = await Promise.all([
       supabase.from('diaries').select('*').eq('user_id', uid).order('date', { ascending: false }),
       supabase.from('shifts').select('*').eq('user_id', uid),
       supabase.from('medical_terms').select('*').eq('user_id', uid).order('term'),
@@ -71,6 +73,7 @@ const NurseApp = ({ user, onSignOut }) => {
       supabase.from('study_notes').select('*').eq('user_id', uid),
       supabase.from('diary_templates').select('*').eq('user_id', uid),
       supabase.from('hidden_templates').select('*').eq('user_id', uid),
+      supabase.from('mood_logs').select('*').eq('user_id', uid).eq('date', today).maybeSingle(),
     ]);
 
     setDiaries(diariesRes.data || []);
@@ -114,6 +117,9 @@ const NurseApp = ({ user, onSignOut }) => {
 
     // hidden_templates: content 文字列の配列
     setHiddenDefaultTemplates((hiddenRes.data || []).map(t => t.content));
+
+    // 今日の気分ログ
+    if (moodRes.data) setTodayMood(moodRes.data.mood);
   };
 
   // =====================================================
@@ -250,8 +256,47 @@ const NurseApp = ({ user, onSignOut }) => {
 
     const visibleDefaultTemplates = defaultDiaryTemplates.filter(t => !hiddenDefaultTemplates.includes(t));
 
+    const moods = [
+      { value: 1, emoji: '😔', label: 'つらい' },
+      { value: 2, emoji: '😟', label: 'しんどい' },
+      { value: 3, emoji: '😐', label: 'ふつう' },
+      { value: 4, emoji: '🙂', label: 'まあまあ' },
+      { value: 5, emoji: '😊', label: 'いい感じ' },
+    ];
+
+    const saveMood = async (value) => {
+      const today = new Date().toISOString().split('T')[0];
+      await supabase.from('mood_logs').upsert(
+        { user_id: user.id, date: today, mood: value },
+        { onConflict: 'user_id,date' }
+      );
+      setTodayMood(value);
+    };
+
     return (
       <div className="space-y-4">
+        {/* メンタルチェック */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold mb-3 text-indigo-800">今日の気分は？</h3>
+          {todayMood ? (
+            <div className="flex items-center gap-2 text-gray-600">
+              <span className="text-3xl">{moods.find(m => m.value === todayMood)?.emoji}</span>
+              <span className="text-sm">今日は「{moods.find(m => m.value === todayMood)?.label}」と記録しました</span>
+              <button onClick={() => setTodayMood(null)} className="ml-auto text-xs text-blue-500 hover:underline">変更</button>
+            </div>
+          ) : (
+            <div className="flex justify-around">
+              {moods.map(m => (
+                <button key={m.value} onClick={() => saveMood(m.value)}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-indigo-50 transition">
+                  <span className="text-3xl">{m.emoji}</span>
+                  <span className="text-xs text-gray-500">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-semibold mb-3">新しい日記</h3>
           <input type="date" value={newDiary.date}
@@ -384,8 +429,32 @@ const NurseApp = ({ user, onSignOut }) => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
 
+    // 夜勤後メッセージ：昨日が夜勤・深夜勤だったか確認
+    const getNightShiftMessage = () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yKey = yesterday.toISOString().split('T')[0];
+      const yShift = shifts[yKey];
+      if (yShift === 'night' || yShift === 'lateNight') {
+        return '昨日は夜勤でしたね。ゆっくり休めていますか？無理しすぎないでください。';
+      }
+      const todayKey = new Date().toISOString().split('T')[0];
+      const todayShift = shifts[todayKey];
+      if (todayShift === 'night' || todayShift === 'evening') {
+        return '今日は夜勤ですね。無理せず、良い勤務になりますように。';
+      }
+      return null;
+    };
+    const nightShiftMessage = getNightShiftMessage();
+
     return (
       <div className="space-y-4">
+        {nightShiftMessage && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-indigo-800 text-sm flex items-start gap-2">
+            <span className="text-xl">🌙</span>
+            <p>{nightShiftMessage}</p>
+          </div>
+        )}
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20} /></button>
