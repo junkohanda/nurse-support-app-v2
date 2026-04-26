@@ -803,6 +803,31 @@ const NurseApp = ({ user, onSignOut }) => {
   // =====================================================
   const SettingsTab = () => {
     const [tempSettings, setTempSettings] = useState(userSettings);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordMessage, setPasswordMessage] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+
+    const handlePasswordChange = async () => {
+      setPasswordMessage('');
+      setPasswordError('');
+      if (newPassword.length < 6) {
+        setPasswordError('パスワードは6文字以上で入力してください。');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError('パスワードが一致しません。');
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError('パスワードの変更に失敗しました。');
+      } else {
+        setPasswordMessage('パスワードを変更しました。');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    };
 
     const handleSave = async () => {
       await supabase.from('user_settings').upsert({
@@ -868,6 +893,26 @@ const NurseApp = ({ user, onSignOut }) => {
         <button onClick={handleSave} className="w-full bg-blue-500 text-white px-4 py-3 rounded hover:bg-blue-600 flex items-center justify-center gap-2 font-semibold">
           <Save size={20} /> 設定を保存
         </button>
+
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold mb-4 text-lg">パスワード変更</h3>
+          <div className="mb-3">
+            <label className="block text-sm font-medium mb-1">新しいパスワード（6文字以上）</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••" className="w-full p-2 border rounded" />
+          </div>
+          <div className="mb-3">
+            <label className="block text-sm font-medium mb-1">新しいパスワード（確認）</label>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••" className="w-full p-2 border rounded" />
+          </div>
+          {passwordError && <p className="text-red-600 text-sm bg-red-50 p-2 rounded mb-2">{passwordError}</p>}
+          {passwordMessage && <p className="text-green-600 text-sm bg-green-50 p-2 rounded mb-2">{passwordMessage}</p>}
+          <button onClick={handlePasswordChange}
+            className="w-full bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 font-semibold">
+            パスワードを変更する
+          </button>
+        </div>
       </div>
     );
   };
