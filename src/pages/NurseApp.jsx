@@ -35,7 +35,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   });
   const [newsArticles, setNewsArticles] = useState([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [todayMood, setTodayMood] = useState(null); // 今日記録済みのmood（1-5）
+  const [todayMood, setTodayMood] = useState(null);
+  const [showWarning, setShowWarning] = useState(false);
 
   const initialTerms = [
     { term: 'BP',   full_name: 'Blood Pressure',                      meaning: '血圧' },
@@ -121,6 +122,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
     // 今日の気分ログ
     if (moodRes.data) setTodayMood(moodRes.data.mood);
+
+    // 初回ログイン時の警告（日記が0件かつ確認済みフラグがなければ表示）
+    const warned = localStorage.getItem(`privacy-warned-${uid}`);
+    if (!warned) setShowWarning(true);
   };
 
   // =====================================================
@@ -340,7 +345,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             )}
           </div>
           <textarea value={newDiary.content} onChange={(e) => setNewDiary({ ...newDiary, content: e.target.value })}
-            placeholder="今日の出来事や気づきを記録..." className="w-full p-2 border rounded h-24 mb-2" />
+            placeholder="今日の出来事や気づきを記録..." className="w-full p-2 border rounded h-24 mb-1" />
+          <p className="text-xs text-red-400 mb-2">⚠️ 患者氏名・IDなどの個人情報は入力しないでください</p>
           <button onClick={addDiary} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2">
             <Plus size={16} /> 保存
           </button>
@@ -596,7 +602,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
           <input type="text" value={newTodo.title} onChange={(e) => setNewTodo({ ...newTodo, title: e.target.value })}
             placeholder="タイトル" className="w-full p-2 border rounded mb-2" />
           <textarea value={newTodo.description} onChange={(e) => setNewTodo({ ...newTodo, description: e.target.value })}
-            placeholder="詳細（任意）" className="w-full p-2 border rounded h-20 mb-2" />
+            placeholder="詳細（任意）" className="w-full p-2 border rounded h-20 mb-1" />
+          <p className="text-xs text-red-400 mb-2">⚠️ 患者氏名・IDなどの個人情報は入力しないでください</p>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <input type="date" value={newTodo.dueDate} onChange={(e) => setNewTodo({ ...newTodo, dueDate: e.target.value })} className="p-2 border rounded" />
             <select value={newTodo.priority} onChange={(e) => setNewTodo({ ...newTodo, priority: e.target.value })} className="p-2 border rounded">
@@ -739,7 +746,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             </>
           )}
           <textarea value={newNote.content} onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-            placeholder="学んだ内容を記録..." className="w-full p-2 border rounded h-32 mb-2" />
+            placeholder="学んだ内容を記録..." className="w-full p-2 border rounded h-32 mb-1" />
+          <p className="text-xs text-red-400 mb-2">⚠️ 患者氏名・IDなどの個人情報は入力しないでください</p>
           <div className="mb-2">
             <label className="block text-sm font-medium mb-1">復習リマインダー（任意）</label>
             <input type="date" value={newNote.reviewDate} onChange={(e) => setNewNote({ ...newNote, reviewDate: e.target.value })}
@@ -1011,8 +1019,34 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   // =====================================================
   // メイン画面レンダリング
   // =====================================================
+  const dismissWarning = () => {
+    localStorage.setItem(`privacy-warned-${user.id}`, 'true');
+    setShowWarning(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+
+      {/* 初回警告ポップアップ */}
+      {showWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full">
+            <div className="text-3xl mb-3 text-center">⚠️</div>
+            <h2 className="font-bold text-lg text-center text-gray-900 mb-3">ご利用前にお読みください</h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-4">
+              本アプリには<span className="font-semibold text-red-600">患者氏名・ID・診断名などの個人情報を入力しないでください。</span>
+            </p>
+            <p className="text-sm text-gray-600 leading-relaxed mb-6">
+              日記・ToDo・勉強ノートへの記録は個人の学習・業務管理を目的としています。医療現場の個人情報保護に関するルールを遵守してご利用ください。
+            </p>
+            <button onClick={dismissWarning}
+              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition">
+              理解しました
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-indigo-900">看護師サポートアプリ</h1>
