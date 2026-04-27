@@ -404,21 +404,17 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
       setSelectedDate(formatDateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day));
     };
 
-    const handleShiftChange = async (dateKey) => {
-      const currentShift = shifts[dateKey];
-      const currentIndex = shiftTypes.findIndex(s => s.id === currentShift);
-      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % (shiftTypes.length + 1);
+    const selectShift = async (dateKey, shiftId) => {
+      await supabase.from('shifts').upsert(
+        { user_id: user.id, date: dateKey, shift_type: shiftId },
+        { onConflict: 'user_id,date' }
+      );
+      setShifts(prev => ({ ...prev, [dateKey]: shiftId }));
+    };
 
-      if (nextIndex === shiftTypes.length) {
-        await supabase.from('shifts').delete().eq('user_id', user.id).eq('date', dateKey);
-        setShifts(prev => { const n = { ...prev }; delete n[dateKey]; return n; });
-      } else {
-        await supabase.from('shifts').upsert(
-          { user_id: user.id, date: dateKey, shift_type: shiftTypes[nextIndex].id },
-          { onConflict: 'user_id,date' }
-        );
-        setShifts(prev => ({ ...prev, [dateKey]: shiftTypes[nextIndex].id }));
-      }
+    const clearShift = async (dateKey) => {
+      await supabase.from('shifts').delete().eq('user_id', user.id).eq('date', dateKey);
+      setShifts(prev => { const n = { ...prev }; delete n[dateKey]; return n; });
     };
 
     const changeMonth = (delta) =>
@@ -499,7 +495,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               );
             })}
           </div>
-          <div className="mt-4 text-xs text-gray-600 text-center">日付をタップして詳細を表示</div>
+          <div className="mt-4 text-xs text-gray-600 text-center">日付をタップしてシフトをポンと選ぶ</div>
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
@@ -525,12 +521,22 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               <button onClick={() => setSelectedDate(null)} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
             </div>
             <div className="mb-4">
-              <h4 className="text-sm font-medium mb-2">シフト</h4>
-              <button onClick={() => handleShiftChange(selectedDate)}
-                className={`px-4 py-2 rounded border w-full ${shifts[selectedDate] ? shiftTypes.find(s => s.id === shifts[selectedDate])?.color : 'bg-gray-100'}`}>
-                {shifts[selectedDate] ? shiftTypes.find(s => s.id === shifts[selectedDate])?.label : 'シフト未設定'}
-                <span className="text-xs ml-2">(タップで変更)</span>
-              </button>
+              <h4 className="text-sm font-medium mb-2">シフトを選択</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {shiftTypes.map(shift => {
+                  const isSelected = shifts[selectedDate] === shift.id;
+                  return (
+                    <button key={shift.id} onClick={() => selectShift(selectedDate, shift.id)}
+                      className={`py-3 rounded-lg border-2 text-sm font-bold transition-all ${isSelected ? shift.color + ' border-current scale-105 shadow' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}>
+                      {shift.label}
+                    </button>
+                  );
+                })}
+                <button onClick={() => clearShift(selectedDate)}
+                  className={`py-3 rounded-lg border-2 text-sm font-bold transition-all ${!shifts[selectedDate] ? 'bg-gray-200 text-gray-700 border-gray-400' : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
+                  なし
+                </button>
+              </div>
             </div>
             <div>
               <h4 className="text-sm font-medium mb-2">この日のToDo</h4>
