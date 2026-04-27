@@ -410,19 +410,20 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const formatDateKey = (year, month, day) =>
       `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    const handleDayClick = async (day) => {
+    const handleDayClick = (day) => {
       if (!day) return;
       const dateKey = formatDateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      if (activeShiftType === 'clear') {
-        await clearShift(dateKey);
-        setSeqDate(shiftSeqDate(dateKey, 1));
-      } else if (activeShiftType) {
-        await selectShift(dateKey, activeShiftType);
-        setSeqDate(shiftSeqDate(dateKey, 1));
+      setSeqDate(dateKey);
+      setSelectedDate(null);
+    };
+
+    const applyShiftAndAdvance = async (shiftId) => {
+      if (shiftId === 'clear') {
+        await clearShift(seqDate);
       } else {
-        setSeqDate(dateKey);
-        setSelectedDate(selectedDate === dateKey ? null : dateKey);
+        await selectShift(seqDate, shiftId);
       }
+      setSeqDate(shiftSeqDate(seqDate, 1));
     };
 
     const selectShift = async (dateKey, shiftId) => {
@@ -489,34 +490,6 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
           </div>
-          {/* シフト種別パレット */}
-          <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
-            <p className="text-xs text-indigo-600 font-semibold mb-2">種別を選んで日付をポンポンタップ（自動で翌日へ）</p>
-            <div className="flex flex-wrap gap-2">
-              {shiftTypes.map(type => {
-                const isActive = activeShiftType === type.id;
-                return (
-                  <button key={type.id}
-                    onClick={() => setActiveShiftType(isActive ? null : type.id)}
-                    className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${isActive ? type.color + ' border-current shadow-md scale-105' : 'bg-white text-gray-500 border-gray-200'}`}>
-                    {type.label}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setActiveShiftType(activeShiftType === 'clear' ? null : 'clear')}
-                className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${activeShiftType === 'clear' ? 'bg-gray-300 text-gray-700 border-gray-500 shadow-md scale-105' : 'bg-white text-gray-400 border-gray-200'}`}>
-                消去
-              </button>
-            </div>
-            {activeShiftType && (
-              <p className="text-xs text-indigo-700 mt-2 font-semibold">
-                {activeShiftType === 'clear'
-                  ? '🗑 消去モード — タップした日を削除して翌日へ'
-                  : `✅ 「${shiftTypes.find(t => t.id === activeShiftType)?.label}」を選択中 — タップで入力 → 自動で翌日へ`}
-              </p>
-            )}
-          </div>
           <div className="grid grid-cols-7 gap-1">
             {['日','月','火','水','木','金','土'].map(day => (
               <div key={day} className="text-center font-semibold text-sm py-2 text-gray-600">{day}</div>
@@ -539,9 +512,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               );
             })}
           </div>
-          <div className="mt-4 text-xs text-gray-500 text-center">
-            {activeShiftType ? '日付をポンポンタップ' : '種別を選んでから日付をタップ、または日付を直接タップ'}
-          </div>
+          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップしてカーソルを移動できます</div>
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
@@ -560,47 +531,37 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             </div>
           )}
         </div>
-        {selectedDate && (
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold">{selectedDate}</h3>
-              <button onClick={() => setSelectedDate(null)} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
-            </div>
-            <div className="mb-4">
-              <h4 className="text-sm font-medium mb-2">シフトを選択</h4>
-              <div className="grid grid-cols-3 gap-2">
-                {shiftTypes.map(shift => {
-                  const isSelected = shifts[selectedDate] === shift.id;
-                  return (
-                    <button key={shift.id} onClick={() => selectShift(selectedDate, shift.id)}
-                      className={`py-3 rounded-lg border-2 text-sm font-bold transition-all ${isSelected ? shift.color + ' border-current scale-105 shadow' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}>
-                      {shift.label}
-                    </button>
-                  );
-                })}
-                <button onClick={() => clearShift(selectedDate)}
-                  className={`py-3 rounded-lg border-2 text-sm font-bold transition-all ${!shifts[selectedDate] ? 'bg-gray-200 text-gray-700 border-gray-400' : 'bg-white text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
-                  なし
-                </button>
+        {/* シフト入力パネル（常に表示） */}
+        <div className="bg-white p-4 rounded-xl shadow">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => setSeqDate(shiftSeqDate(seqDate, -1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft size={20} /></button>
+            <div className="text-center">
+              <div className="font-bold text-base text-indigo-900">
+                {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
               </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium mb-2">この日のToDo</h4>
-              {getTodosForDate(selectedDate).length === 0 ? (
-                <p className="text-sm text-gray-500">ToDoはありません</p>
+              {shifts[seqDate] ? (
+                <span className={`text-xs px-2 py-0.5 rounded font-semibold ${shiftTypes.find(s => s.id === shifts[seqDate])?.color}`}>
+                  {shiftTypes.find(s => s.id === shifts[seqDate])?.label}
+                </span>
               ) : (
-                <div className="space-y-2">
-                  {getTodosForDate(selectedDate).map(todo => (
-                    <div key={todo.id} className={`p-2 rounded border ${todo.priority === 'high' ? 'border-red-300 bg-red-50' : todo.priority === 'medium' ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300 bg-blue-50'}`}>
-                      <div className="text-sm font-medium">{todo.title}</div>
-                      {todo.description && <div className="text-xs text-gray-600 mt-1">{todo.description}</div>}
-                    </div>
-                  ))}
-                </div>
+                <span className="text-xs text-gray-400">未入力</span>
               )}
             </div>
+            <button onClick={() => setSeqDate(shiftSeqDate(seqDate, 1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight size={20} /></button>
           </div>
-        )}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {shiftTypes.map(shift => (
+              <button key={shift.id} onClick={() => applyShiftAndAdvance(shift.id)}
+                className={`py-3 rounded-lg border-2 text-sm font-bold transition-all active:scale-95 ${shift.color} hover:opacity-80`}>
+                {shift.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => applyShiftAndAdvance('clear')}
+            className="w-full py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-400 font-medium hover:bg-gray-50 active:scale-95">
+            この日を削除して次へ
+          </button>
+        </div>
       </div>
     );
   };
