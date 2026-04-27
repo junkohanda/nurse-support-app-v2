@@ -169,7 +169,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     { key: 'red',     bg: '#fecaca', cls: 'bg-red-100 text-red-800 border-red-300' },
     { key: 'lime',    bg: '#d9f99d', cls: 'bg-lime-100 text-lime-800 border-lime-300' },
     { key: 'sky',     bg: '#e0f2fe', cls: 'bg-sky-100 text-sky-800 border-sky-300' },
-    { key: 'blue',    bg: '#bfdbfe', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
+    { key: 'zinc',    bg: '#f4f4f5', cls: 'bg-zinc-100 text-zinc-800 border-zinc-300' },
     { key: 'fuchsia', bg: '#f5d0fe', cls: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
     { key: 'rose',    bg: '#ffe4e6', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
     { key: 'stone',   bg: '#e7e5e4', cls: 'bg-stone-100 text-stone-800 border-stone-300' },
