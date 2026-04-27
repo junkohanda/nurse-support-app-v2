@@ -22,6 +22,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     profession: '',
     department: '',
     shiftSystem: '2',
+    customShifts: [],
     shiftTimes: {
       day:       { start: '08:00', end: '16:30' },
       night:     { start: '16:00', end: '09:00' },
@@ -146,7 +147,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const termToState    = (t) => ({ id: t.id, term: t.term, full: t.full_name, meaning: t.meaning });
   const settingsToState = (s) => ({
     profession: s.profession, department: s.department,
-    shiftSystem: s.shift_system, shiftTimes: s.shift_times
+    shiftSystem: s.shift_system, shiftTimes: s.shift_times,
+    customShifts: s.custom_shifts || [],
   });
   const todoToState = (t) => ({
     id: t.id, title: t.title, description: t.description,
@@ -161,31 +163,51 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   });
 
   // =====================================================
-  // シフト定義・カテゴリ定義（変更なし）
+  // シフト定義・カラーパレット
   // =====================================================
+  const SHIFT_COLORS = [
+    { key: 'rose',    bg: '#fecdd3', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
+    { key: 'red',     bg: '#fecaca', cls: 'bg-red-100 text-red-800 border-red-300' },
+    { key: 'orange',  bg: '#fed7aa', cls: 'bg-orange-100 text-orange-800 border-orange-300' },
+    { key: 'lime',    bg: '#d9f99d', cls: 'bg-lime-100 text-lime-800 border-lime-300' },
+    { key: 'teal',    bg: '#99f6e4', cls: 'bg-teal-100 text-teal-800 border-teal-300' },
+    { key: 'sky',     bg: '#bae6fd', cls: 'bg-sky-100 text-sky-800 border-sky-300' },
+    { key: 'violet',  bg: '#ddd6fe', cls: 'bg-violet-100 text-violet-800 border-violet-300' },
+    { key: 'stone',   bg: '#e7e5e4', cls: 'bg-stone-100 text-stone-800 border-stone-300' },
+  ];
+
   const getShiftTypes = () => {
+    const t = userSettings.shiftTimes || {};
+    const lbl = (id, def) => t[id]?.label || def;
     const commonShifts = [
-      { id: 'day',   label: '日勤',   color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-      { id: 'am',    label: 'AM',     color: 'bg-cyan-100 text-cyan-800 border-cyan-300' },
-      { id: 'pm',    label: 'PM',     color: 'bg-orange-100 text-orange-800 border-orange-300' },
-      { id: 'late',  label: '遅出',   color: 'bg-amber-100 text-amber-800 border-amber-300' },
-      { id: 'early', label: '早出',   color: 'bg-pink-100 text-pink-800 border-pink-300' },
-      { id: 'off',   label: '休み',   color: 'bg-green-100 text-green-800 border-green-300' },
+      { id: 'day',   label: lbl('day',   '日勤'), color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+      { id: 'am',    label: lbl('am',    'AM'),   color: 'bg-cyan-100 text-cyan-800 border-cyan-300' },
+      { id: 'pm',    label: lbl('pm',    'PM'),   color: 'bg-orange-100 text-orange-800 border-orange-300' },
+      { id: 'late',  label: lbl('late',  '遅出'), color: 'bg-amber-100 text-amber-800 border-amber-300' },
+      { id: 'early', label: lbl('early', '早出'), color: 'bg-pink-100 text-pink-800 border-pink-300' },
+      { id: 'off',   label: lbl('off',   '休み'), color: 'bg-green-100 text-green-800 border-green-300' },
     ];
+    let base;
     if (userSettings.shiftSystem === '3') {
-      return [
+      base = [
         commonShifts[0],
-        { id: 'evening',   label: '準夜勤', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-        { id: 'lateNight', label: '深夜勤', color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
+        { id: 'evening',   label: lbl('evening',   '準夜勤'), color: 'bg-purple-100 text-purple-800 border-purple-300' },
+        { id: 'lateNight', label: lbl('lateNight', '深夜勤'), color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
         ...commonShifts.slice(1),
       ];
     } else {
-      return [
+      base = [
         commonShifts[0],
-        { id: 'night', label: '夜勤', color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
+        { id: 'night', label: lbl('night', '夜勤'), color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
         ...commonShifts.slice(1),
       ];
     }
+    const custom = (userSettings.customShifts || []).map(cs => ({
+      id: cs.id,
+      label: cs.label,
+      color: SHIFT_COLORS.find(c => c.key === cs.color)?.cls || 'bg-gray-100 text-gray-800 border-gray-300',
+    }));
+    return [...base, ...custom];
   };
   const shiftTypes = getShiftTypes();
 
@@ -948,26 +970,15 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordMessage, setPasswordMessage] = useState('');
     const [passwordError, setPasswordError] = useState('');
+    const [newShift, setNewShift] = useState({ label: '', start: '08:00', end: '17:00', color: 'rose' });
 
     const handlePasswordChange = async () => {
-      setPasswordMessage('');
-      setPasswordError('');
-      if (newPassword.length < 6) {
-        setPasswordError('パスワードは6文字以上で入力してください。');
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        setPasswordError('パスワードが一致しません。');
-        return;
-      }
+      setPasswordMessage(''); setPasswordError('');
+      if (newPassword.length < 6) { setPasswordError('パスワードは6文字以上で入力してください。'); return; }
+      if (newPassword !== confirmPassword) { setPasswordError('パスワードが一致しません。'); return; }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        setPasswordError('パスワードの変更に失敗しました。');
-      } else {
-        setPasswordMessage('パスワードを変更しました。');
-        setNewPassword('');
-        setConfirmPassword('');
-      }
+      if (error) { setPasswordError('パスワードの変更に失敗しました。'); }
+      else { setPasswordMessage('パスワードを変更しました。'); setNewPassword(''); setConfirmPassword(''); }
     };
 
     const handleSave = async () => {
@@ -977,6 +988,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
         department: tempSettings.department,
         shift_system: tempSettings.shiftSystem,
         shift_times: tempSettings.shiftTimes,
+        custom_shifts: tempSettings.customShifts || [],
       }, { onConflict: 'user_id' });
       setUserSettings(tempSettings);
       alert('設定を保存しました！');
@@ -987,10 +999,45 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
       if (tempSettings.shiftSystem === '3') return ['day', 'evening', 'lateNight', 'am', 'pm', 'late', 'early'];
       return ['day', 'night', 'am', 'pm', 'late', 'early'];
     };
-    const getShiftLabel = (id) => ({ day:'日勤', night:'夜勤', evening:'準夜勤', lateNight:'深夜勤', am:'AM', pm:'PM', late:'遅出', early:'早出' }[id] || id);
+    const DEFAULT_LABELS = { day:'日勤', night:'夜勤', evening:'準夜勤', lateNight:'深夜勤', am:'AM', pm:'PM', late:'遅出', early:'早出' };
+
+    const updateShiftTime = (shiftId, field, value) => {
+      const cur = tempSettings.shiftTimes[shiftId] || { start: '00:00', end: '00:00' };
+      setTempSettings({ ...tempSettings, shiftTimes: { ...tempSettings.shiftTimes, [shiftId]: { ...cur, [field]: value } } });
+    };
+
+    const addCustomShift = () => {
+      if (!newShift.label.trim()) return;
+      const id = `custom_${Date.now()}`;
+      setTempSettings(prev => ({ ...prev, customShifts: [...(prev.customShifts || []), { id, ...newShift }] }));
+      setNewShift({ label: '', start: '08:00', end: '17:00', color: 'rose' });
+    };
+
+    const updateCustomShift = (idx, field, value) => {
+      setTempSettings(prev => {
+        const updated = [...(prev.customShifts || [])];
+        updated[idx] = { ...updated[idx], [field]: value };
+        return { ...prev, customShifts: updated };
+      });
+    };
+
+    const deleteCustomShift = (idx) => {
+      setTempSettings(prev => ({ ...prev, customShifts: (prev.customShifts || []).filter((_, i) => i !== idx) }));
+    };
+
+    const ColorPicker = ({ selected, onChange }) => (
+      <div className="flex gap-2 flex-wrap mt-2">
+        {SHIFT_COLORS.map(c => (
+          <button key={c.key} onClick={() => onChange(c.key)}
+            style={{ backgroundColor: c.bg }}
+            className={`w-7 h-7 rounded-full border-2 transition-transform ${selected === c.key ? 'border-gray-700 scale-125' : 'border-transparent'}`} />
+        ))}
+      </div>
+    );
 
     return (
       <div className="space-y-4">
+        {/* ユーザー属性 */}
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-semibold mb-4 text-lg">ユーザー属性</h3>
           <div className="mb-4">
@@ -1016,41 +1063,84 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             </select>
           </div>
         </div>
+
+        {/* 既存シフト時間・名前設定 */}
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="font-semibold mb-4 text-lg">シフト時間設定</h3>
+          <h3 className="font-semibold mb-1 text-lg">シフト種別の設定</h3>
+          <p className="text-xs text-gray-400 mb-4">勤務名・開始・終了時刻を変更できます</p>
           {getAvailableShiftTypes().map(shiftId => {
             const shiftTime = tempSettings.shiftTimes[shiftId] || { start: '00:00', end: '00:00' };
             return (
-              <div key={shiftId} className="mb-4">
-                <label className="block text-sm font-medium mb-2">{getShiftLabel(shiftId)}</label>
+              <div key={shiftId} className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <input type="text"
+                  value={shiftTime.label ?? DEFAULT_LABELS[shiftId]}
+                  onChange={(e) => updateShiftTime(shiftId, 'label', e.target.value)}
+                  className="w-full p-2 border rounded mb-2 font-medium text-sm"
+                  placeholder={DEFAULT_LABELS[shiftId]} />
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="time" value={shiftTime.start} onChange={(e) => setTempSettings({ ...tempSettings, shiftTimes: { ...tempSettings.shiftTimes, [shiftId]: { ...shiftTime, start: e.target.value } } })} className="p-2 border rounded" />
-                  <input type="time" value={shiftTime.end} onChange={(e) => setTempSettings({ ...tempSettings, shiftTimes: { ...tempSettings.shiftTimes, [shiftId]: { ...shiftTime, end: e.target.value } } })} className="p-2 border rounded" />
+                  <input type="time" value={shiftTime.start} onChange={(e) => updateShiftTime(shiftId, 'start', e.target.value)} className="p-2 border rounded text-sm" />
+                  <input type="time" value={shiftTime.end} onChange={(e) => updateShiftTime(shiftId, 'end', e.target.value)} className="p-2 border rounded text-sm" />
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* カスタムシフト種別 */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold mb-1 text-lg">カスタムシフト種別</h3>
+          <p className="text-xs text-gray-400 mb-4">自由に追加・削除できます</p>
+
+          {(tempSettings.customShifts || []).map((cs, idx) => (
+            <div key={cs.id} className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex gap-2 mb-2">
+                <input type="text" value={cs.label}
+                  onChange={(e) => updateCustomShift(idx, 'label', e.target.value)}
+                  placeholder="勤務名" className="flex-1 p-2 border rounded text-sm font-medium" />
+                <button onClick={() => deleteCustomShift(idx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={18} /></button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-1">
+                <input type="time" value={cs.start} onChange={(e) => updateCustomShift(idx, 'start', e.target.value)} className="p-2 border rounded text-sm" />
+                <input type="time" value={cs.end} onChange={(e) => updateCustomShift(idx, 'end', e.target.value)} className="p-2 border rounded text-sm" />
+              </div>
+              <ColorPicker selected={cs.color} onChange={(c) => updateCustomShift(idx, 'color', c)} />
+            </div>
+          ))}
+
+          <div className="p-3 border-2 border-dashed border-indigo-200 rounded-lg">
+            <p className="text-sm font-semibold text-indigo-700 mb-2">＋ 新しいシフト種別を追加</p>
+            <input type="text" value={newShift.label} onChange={(e) => setNewShift({ ...newShift, label: e.target.value })}
+              placeholder="勤務名（例：日長、夜勤A）" className="w-full p-2 border rounded mb-2 text-sm" />
+            <div className="grid grid-cols-2 gap-2 mb-1">
+              <input type="time" value={newShift.start} onChange={(e) => setNewShift({ ...newShift, start: e.target.value })} className="p-2 border rounded text-sm" />
+              <input type="time" value={newShift.end} onChange={(e) => setNewShift({ ...newShift, end: e.target.value })} className="p-2 border rounded text-sm" />
+            </div>
+            <ColorPicker selected={newShift.color} onChange={(c) => setNewShift({ ...newShift, color: c })} />
+            <button onClick={addCustomShift}
+              className="mt-3 w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold text-sm hover:bg-indigo-700 flex items-center justify-center gap-1">
+              <Plus size={16} /> 追加する
+            </button>
+          </div>
+        </div>
+
         <button onClick={handleSave} className="w-full bg-blue-500 text-white px-4 py-3 rounded hover:bg-blue-600 flex items-center justify-center gap-2 font-semibold">
           <Save size={20} /> 設定を保存
         </button>
 
+        {/* パスワード変更 */}
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-semibold mb-4 text-lg">パスワード変更</h3>
           <div className="mb-3">
             <label className="block text-sm font-medium mb-1">新しいパスワード（6文字以上）</label>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••" className="w-full p-2 border rounded" />
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full p-2 border rounded" />
           </div>
           <div className="mb-3">
             <label className="block text-sm font-medium mb-1">新しいパスワード（確認）</label>
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••" className="w-full p-2 border rounded" />
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="w-full p-2 border rounded" />
           </div>
           {passwordError && <p className="text-red-600 text-sm bg-red-50 p-2 rounded mb-2">{passwordError}</p>}
           {passwordMessage && <p className="text-green-600 text-sm bg-green-50 p-2 rounded mb-2">{passwordMessage}</p>}
-          <button onClick={handlePasswordChange}
-            className="w-full bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 font-semibold">
+          <button onClick={handlePasswordChange} className="w-full bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800 font-semibold">
             パスワードを変更する
           </button>
         </div>
