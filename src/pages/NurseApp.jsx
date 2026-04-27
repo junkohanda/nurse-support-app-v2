@@ -5,6 +5,64 @@ import {
   ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut
 } from 'lucide-react';
 
+const STAMPS = [
+  '😊','😔','😤','😫','💪','🌙','☀️','🌸',
+  '🏥','💊','💉','📋','📚','🍜','🎵','🎉',
+  '🤕','😴','☕','🌷','❤️','⭐','🙏','✨',
+];
+
+const EventModal = ({ date, editingEvent, onSave, onDelete, onClose }) => {
+  const [stamp, setStamp] = useState(editingEvent?.stamp || null);
+  const [title, setTitle] = useState(editingEvent?.title || '');
+  const [memo, setMemo] = useState(editingEvent?.memo || '');
+
+  const dateLabel = date
+    ? new Date(date + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
+    : '';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-base text-gray-900">{dateLabel}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+
+        <p className="text-xs font-semibold text-gray-500 mb-2">スタンプ</p>
+        <div className="grid grid-cols-8 gap-1 mb-4">
+          {STAMPS.map(s => (
+            <button key={s} onClick={() => setStamp(stamp === s ? null : s)}
+              className={`text-xl p-1.5 rounded-lg transition ${stamp === s ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'hover:bg-gray-100'}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder="タイトル（任意）"
+          className="w-full p-2 border border-gray-200 rounded-lg mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        <textarea value={memo} onChange={(e) => setMemo(e.target.value)}
+          placeholder="メモ（任意）"
+          className="w-full p-2 border border-gray-200 rounded-lg h-20 mb-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+
+        <div className="flex gap-2">
+          {editingEvent && (
+            <button onClick={onDelete}
+              className="flex-1 py-2.5 rounded-xl border-2 border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition">
+              削除
+            </button>
+          )}
+          <button onClick={() => onSave(stamp, title, memo)}
+            disabled={!stamp && !title && !memo}
+            className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed">
+            保存する
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [activeTab, setActiveTab] = useState('diary');
   const [diaries, setDiaries] = useState([]);
@@ -44,6 +102,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   });
+  const [calendarEvents, setCalendarEvents] = useState({});
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
 
   const shiftSeqDate = (dateStr, delta) => {
     const d = new Date(dateStr);
@@ -78,7 +140,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const loadData = async () => {
     const uid = user.id;
     const today = new Date().toISOString().split('T')[0];
-    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes] = await Promise.all([
+    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes, eventsRes] = await Promise.all([
       supabase.from('diaries').select('*').eq('user_id', uid).order('date', { ascending: false }),
       supabase.from('shifts').select('*').eq('user_id', uid),
       supabase.from('medical_terms').select('*').eq('user_id', uid).order('term'),
@@ -88,6 +150,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
       supabase.from('diary_templates').select('*').eq('user_id', uid),
       supabase.from('hidden_templates').select('*').eq('user_id', uid),
       supabase.from('mood_logs').select('*').eq('user_id', uid).eq('date', today).maybeSingle(),
+      supabase.from('calendar_events').select('*').eq('user_id', uid).order('created_at'),
     ]);
 
     setDiaries(diariesRes.data || []);
@@ -135,6 +198,14 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
     // 今日の気分ログ
     if (moodRes.data) setTodayMood(moodRes.data.mood);
+
+    // カレンダーイベント
+    const eventsMap = {};
+    (eventsRes.data || []).forEach(e => {
+      if (!eventsMap[e.date]) eventsMap[e.date] = [];
+      eventsMap[e.date].push({ id: e.id, title: e.title, memo: e.memo, stamp: e.stamp });
+    });
+    setCalendarEvents(eventsMap);
 
     // 初回ログイン時の警告（日記が0件かつ確認済みフラグがなければ表示）
     const warned = localStorage.getItem(`privacy-warned-${uid}`);
@@ -210,6 +281,41 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     return [...base, ...custom];
   };
   const shiftTypes = getShiftTypes();
+
+  const saveCalendarEvent = async (stamp, title, memo) => {
+    const date = calendarSelectedDate;
+    if (editingEvent) {
+      await supabase.from('calendar_events').update({ stamp, title, memo }).eq('id', editingEvent.id);
+      setCalendarEvents(prev => ({
+        ...prev,
+        [date]: (prev[date] || []).map(e => e.id === editingEvent.id ? { ...e, stamp, title, memo } : e),
+      }));
+    } else {
+      const { data } = await supabase.from('calendar_events').insert({
+        user_id: user.id, date, stamp, title, memo,
+      }).select().single();
+      if (data) {
+        setCalendarEvents(prev => ({
+          ...prev,
+          [date]: [...(prev[date] || []), { id: data.id, title, memo, stamp }],
+        }));
+      }
+    }
+    setShowEventModal(false);
+    setEditingEvent(null);
+  };
+
+  const deleteCalendarEvent = async () => {
+    if (!editingEvent) return;
+    const date = calendarSelectedDate;
+    await supabase.from('calendar_events').delete().eq('id', editingEvent.id);
+    setCalendarEvents(prev => ({
+      ...prev,
+      [date]: (prev[date] || []).filter(e => e.id !== editingEvent.id),
+    }));
+    setShowEventModal(false);
+    setEditingEvent(null);
+  };
 
   const professions = ['看護師', '助産師', '准看護師', 'その他'];
   const departments = [
@@ -440,6 +546,12 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
       setSelectedDate(null);
     };
 
+    const handleCalendarDayClick = (day) => {
+      if (!day) return;
+      const dateKey = formatDateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      setCalendarSelectedDate(prev => prev === dateKey ? null : dateKey);
+    };
+
     const applyShiftAndAdvance = async (shiftId) => {
       if (shiftId === 'clear') {
         await clearShift(seqDate);
@@ -523,18 +635,62 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const shiftType = shifts[dateKey];
               const shiftInfo = shiftTypes.find(s => s.id === shiftType);
               const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+              const isSelected = calendarSelectedDate === dateKey;
               const hasTodos = getTodosForDate(dateKey).length > 0;
+              const dayEvents = calendarEvents[dateKey] || [];
+              const ringClass = isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-400' : '';
               return (
-                <button key={day} onClick={() => handleDayClick(day)}
-                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                <button key={day} onClick={() => handleCalendarDayClick(day)}
+                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${ringClass} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-sm font-semibold">{day}</div>
-                  {shiftInfo && <div className="text-xs mt-0.5">{shiftInfo.label}</div>}
-                  {hasTodos && <div className="absolute bottom-1 right-1 w-2 h-2 bg-black rounded-full"></div>}
+                  {shiftInfo && <div className="text-xs mt-0.5 truncate leading-none">{shiftInfo.label}</div>}
+                  {dayEvents.length > 0 && (
+                    <div className="absolute top-0 right-0 text-xs leading-none">{dayEvents[0].stamp || '📌'}</div>
+                  )}
+                  {hasTodos && (
+                    <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
+                  )}
                 </button>
               );
             })}
           </div>
-          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップしてカーソルを移動できます</div>
+
+          {/* 選択日アクションバー */}
+          {calendarSelectedDate ? (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-800">
+                  {new Date(calendarSelectedDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
+                </span>
+                <button onClick={() => { setEditingEvent(null); setShowEventModal(true); }}
+                  className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-indigo-700 transition">
+                  <Plus size={14} /> 追加
+                </button>
+              </div>
+              {(calendarEvents[calendarSelectedDate] || []).length > 0 ? (
+                <div className="space-y-1">
+                  {(calendarEvents[calendarSelectedDate] || []).map(evt => (
+                    <button key={evt.id}
+                      onClick={() => { setEditingEvent(evt); setShowEventModal(true); }}
+                      className="w-full text-left flex items-center gap-2 p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition">
+                      <span className="text-xl">{evt.stamp || '📌'}</span>
+                      <div className="flex-1 min-w-0">
+                        {evt.title && <div className="text-sm font-medium text-gray-800 truncate">{evt.title}</div>}
+                        {evt.memo && <div className="text-xs text-gray-500 truncate">{evt.memo}</div>}
+                        {!evt.title && !evt.memo && <div className="text-xs text-gray-400">メモなし</div>}
+                      </div>
+                      <Edit2 size={14} className="text-gray-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 text-center py-2">この日のイベントはありません</p>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2 text-xs text-gray-400 text-center">日付をタップしてイベントを追加できます</div>
+          )}
+
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
@@ -1173,6 +1329,18 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+
+      {/* カレンダーイベントモーダル */}
+      {showEventModal && calendarSelectedDate && (
+        <EventModal
+          key={editingEvent?.id || 'new'}
+          date={calendarSelectedDate}
+          editingEvent={editingEvent}
+          onSave={saveCalendarEvent}
+          onDelete={deleteCalendarEvent}
+          onClose={() => { setShowEventModal(false); setEditingEvent(null); }}
+        />
+      )}
 
       {/* 初回警告ポップアップ */}
       {showWarning && (
