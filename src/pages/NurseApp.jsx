@@ -533,21 +533,17 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
         </div>
         {/* シフト入力パネル（常に表示） */}
         <div className="bg-white p-4 rounded-xl shadow">
-          <div className="flex items-center justify-between mb-3">
-            <button onClick={() => setSeqDate(shiftSeqDate(seqDate, -1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft size={20} /></button>
-            <div className="text-center">
-              <div className="font-bold text-base text-indigo-900">
-                {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
-              </div>
-              {shifts[seqDate] ? (
-                <span className={`text-xs px-2 py-0.5 rounded font-semibold ${shiftTypes.find(s => s.id === shifts[seqDate])?.color}`}>
-                  {shiftTypes.find(s => s.id === shifts[seqDate])?.label}
-                </span>
-              ) : (
-                <span className="text-xs text-gray-400">未入力</span>
-              )}
+          <div className="text-center mb-3">
+            <div className="font-bold text-base text-indigo-900">
+              {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
             </div>
-            <button onClick={() => setSeqDate(shiftSeqDate(seqDate, 1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight size={20} /></button>
+            {shifts[seqDate] ? (
+              <span className={`text-xs px-2 py-0.5 rounded font-semibold ${shiftTypes.find(s => s.id === shifts[seqDate])?.color}`}>
+                {shiftTypes.find(s => s.id === shifts[seqDate])?.label}
+              </span>
+            ) : (
+              <span className="text-xs text-gray-400">未入力</span>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-2 mb-2">
             {shiftTypes.map(shift => (
