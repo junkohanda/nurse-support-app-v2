@@ -452,6 +452,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const avg7Color = avg7Num
       ? (avg7Num < 2.5 ? '#ef4444' : avg7Num < 3.5 ? '#f97316' : '#22c55e') : '#6366f1';
     const lowMoodWarning = days30.slice(-3).filter(d => d.mood !== null && d.mood <= 2).length >= 2;
+    const last7Recorded = days30.slice(-7).filter(d => d.mood !== null);
+    const extendedRedWarning = last7Recorded.length >= 5 && last7Recorded.filter(d => d.mood === 1).length >= 5;
 
     return (
       <div className="space-y-4">
@@ -484,8 +486,17 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             <p className="text-xs text-gray-400 text-center py-4">まだ記録がありません。毎日の気分を記録してみましょう。</p>
           ) : (
             <>
-              {/* バーンアウト警告 */}
-              {lowMoodWarning && (
+              {/* 長期低調警告（7日以上赤が続いている） */}
+              {extendedRedWarning && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-3 space-y-2">
+                  <p className="text-sm font-semibold text-red-700">💙 辛い日が続いているね</p>
+                  <p className="text-sm text-red-600">誰かに気持ちを話してみることはできそう？</p>
+                  <p className="text-sm text-red-600">辛い気持ちは抱え込まなくていいんだよ。吐き出してもいいんだよ。</p>
+                  <p className="text-xs text-red-400">看護師さんだって、助けを求めていい。</p>
+                </div>
+              )}
+              {/* 短期低調警告（直近3日のうち2日以上がしんどい以下） */}
+              {!extendedRedWarning && lowMoodWarning && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3 text-sm text-orange-700 flex items-start gap-2">
                   <span>🌸</span>
                   <span>最近しんどそうです。無理しないで、ゆっくり休んでくださいね。</span>
