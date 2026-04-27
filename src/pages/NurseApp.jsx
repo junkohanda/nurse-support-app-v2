@@ -670,8 +670,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
                 return (
                   <button key={day} onClick={() => handleCalendarDayClick(day)}
                     className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${ringClass} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
-                    <div className="text-sm font-semibold">{day}</div>
-                    {shiftInfo && <div className="text-xs mt-0.5 truncate leading-none">{shiftInfo.label}</div>}
+                    <div className="text-sm font-semibold leading-none">{day}</div>
+                    {shiftInfo && <div className="text-xs mt-0.5 leading-none">{shiftInfo.label.slice(0, 2)}</div>}
                     {dayEvents.length > 0 && (
                       <div className="absolute top-0 right-0 text-xs leading-none">{dayEvents[0].stamp || '📌'}</div>
                     )}
@@ -769,8 +769,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               return (
                 <button key={day} onClick={() => handleDayClick(day)}
                   className={`aspect-square border rounded p-0.5 transition relative ${isSeqCursor ? 'ring-2 ring-indigo-500' : isToday ? 'ring-2 ring-blue-400' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
-                  <div className="text-xs font-semibold">{day}</div>
-                  {shiftInfo && <div className="text-xs leading-none">{shiftInfo.label}</div>}
+                  <div className="text-xs font-semibold leading-none">{day}</div>
+                  {shiftInfo && <div className="text-xs leading-none mt-0.5">{shiftInfo.label.slice(0, 2)}</div>}
                 </button>
               );
             })}
