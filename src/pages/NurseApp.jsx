@@ -455,6 +455,9 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const last7Recorded = days30.slice(-7).filter(d => d.mood !== null);
     const extendedRedWarning = last7Recorded.length >= 5 && last7Recorded.filter(d => d.mood === 1).length >= 5;
 
+    const tomorrowKey = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
+    const tomorrowIsOff = shifts[tomorrowKey] === 'off';
+
     const msgIndex = new Date().getDate() % 3;
     const lowMoodMessages = [
       '最近しんどそうです。無理しないで、ゆっくり休んでくださいね。',
@@ -504,13 +507,21 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
                   <p className="text-sm font-semibold text-red-700">💙 辛い日が続いているね</p>
                   <p className="text-sm text-red-600">{extendedRedMessages[msgIndex].main}</p>
                   <p className="text-sm text-red-500">{extendedRedMessages[msgIndex].sub}</p>
+                  {tomorrowIsOff && (
+                    <p className="text-sm text-red-600 font-medium pt-1 border-t border-red-200">🛌 明日は休みだね、ゆっくり休もう。</p>
+                  )}
                 </div>
               )}
               {/* 短期低調警告（直近3日のうち2日以上がしんどい以下） */}
               {!extendedRedWarning && lowMoodWarning && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3 text-sm text-orange-700 flex items-start gap-2">
                   <span>🌸</span>
-                  <span>{lowMoodMessages[msgIndex]}</span>
+                  <div>
+                    <p>{lowMoodMessages[msgIndex]}</p>
+                    {tomorrowIsOff && (
+                      <p className="font-medium mt-1">🛌 明日は休みだね、ゆっくり休もう。</p>
+                    )}
+                  </div>
                 </div>
               )}
 
