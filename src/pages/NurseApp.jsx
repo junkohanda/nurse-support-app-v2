@@ -83,10 +83,11 @@ const NurseApp = ({ user, onSignOut }) => {
     (shiftsRes.data || []).forEach(s => { shiftsObj[s.date] = s.shift_type; });
     setShifts(shiftsObj);
 
-    // 医療用語：初回は初期データを挿入
+    // 医療用語：初回は初期データを挿入（重複しないよう upsert）
     if ((termsRes.data || []).length === 0) {
       const toInsert = initialTerms.map(t => ({ ...t, user_id: uid }));
-      const { data: inserted } = await supabase.from('medical_terms').insert(toInsert).select();
+      await supabase.from('medical_terms').upsert(toInsert, { onConflict: 'user_id,term', ignoreDuplicates: true });
+      const { data: inserted } = await supabase.from('medical_terms').select('*').eq('user_id', uid).order('term');
       setTerms((inserted || []).map(termToState));
     } else {
       setTerms((termsRes.data || []).map(termToState));
@@ -435,7 +436,7 @@ const NurseApp = ({ user, onSignOut }) => {
       yesterday.setDate(yesterday.getDate() - 1);
       const yKey = yesterday.toISOString().split('T')[0];
       const yShift = shifts[yKey];
-      if (yShift === 'night' || yShift === 'lateNight') {
+      if (yShift === 'night' || yShift === 'lateNight' || yShift === 'evening') {
         return '昨日は夜勤でしたね。ゆっくり休めていますか？無理しすぎないでください。';
       }
       const todayKey = new Date().toISOString().split('T')[0];
@@ -658,9 +659,14 @@ const NurseApp = ({ user, onSignOut }) => {
     const [filterCategory, setFilterCategory] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editNote, setEditNote] = useState(null);
+    const [noteError, setNoteError] = useState('');
 
     const addNote = async () => {
-      if (!newNote.title || !newNote.category || !newNote.content) return;
+      if (!newNote.category || !newNote.content) {
+        setNoteError('カテゴリと内容は必須です。');
+        return;
+      }
+      setNoteError('');
       const { data, error } = await supabase.from('study_notes').insert({
         user_id: user.id, title: newNote.title, category: newNote.category,
         middle_category: newNote.middleCategory, small_category: newNote.smallCategory,
@@ -710,7 +716,7 @@ const NurseApp = ({ user, onSignOut }) => {
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-semibold mb-3">新しい勉強ノート</h3>
           <input type="text" value={newNote.title} onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-            placeholder="タイトル（例：心不全の観察ポイント）" className="w-full p-2 border rounded mb-2" />
+            placeholder="タイトル（任意）" className="w-full p-2 border rounded mb-2" />
           <select value={newNote.category} onChange={(e) => setNewNote({ ...newNote, category: e.target.value, middleCategory: '', smallCategory: '' })}
             className="w-full p-2 border rounded mb-2">
             <option value="">大カテゴリを選択</option>
@@ -740,6 +746,7 @@ const NurseApp = ({ user, onSignOut }) => {
               className="w-full p-2 border rounded" />
             <p className="text-xs text-gray-500 mt-1">設定するとToDoに自動追加されます</p>
           </div>
+          {noteError && <p className="text-red-600 text-sm bg-red-50 p-2 rounded mb-2">{noteError}</p>}
           <button onClick={addNote} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2">
             <Plus size={16} /> 保存
           </button>
