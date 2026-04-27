@@ -455,6 +455,18 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const last7Recorded = days30.slice(-7).filter(d => d.mood !== null);
     const extendedRedWarning = last7Recorded.length >= 5 && last7Recorded.filter(d => d.mood === 1).length >= 5;
 
+    const msgIndex = new Date().getDate() % 3;
+    const lowMoodMessages = [
+      '最近しんどそうです。無理しないで、ゆっくり休んでくださいね。',
+      '少し疲れが出ているかも。今日は早めに休んでみて。',
+      'しんどい時は休むのも仕事のうち。自分を労ってあげてね。',
+    ];
+    const extendedRedMessages = [
+      { main: '誰かに気持ちを話してみることはできそう？', sub: '辛い気持ちは抱え込まなくていいんだよ。看護師さんだって、助けを求めていい。' },
+      { main: '辛い日が続いているね。吐き出してもいいんだよ。', sub: '聞いてくれる人はいそう？ひとりで抱えないで。' },
+      { main: 'ずっとがんばってきたんだね。', sub: '誰かに話すだけで、少し楽になることもあるよ。あなたの気持ちは大事だよ。' },
+    ];
+
     return (
       <div className="space-y-4">
         {/* メンタルチェック */}
@@ -488,18 +500,17 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             <>
               {/* 長期低調警告（7日以上赤が続いている） */}
               {extendedRedWarning && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-3 space-y-2">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-3 space-y-1.5">
                   <p className="text-sm font-semibold text-red-700">💙 辛い日が続いているね</p>
-                  <p className="text-sm text-red-600">誰かに気持ちを話してみることはできそう？</p>
-                  <p className="text-sm text-red-600">辛い気持ちは抱え込まなくていいんだよ。吐き出してもいいんだよ。</p>
-                  <p className="text-xs text-red-400">看護師さんだって、助けを求めていい。</p>
+                  <p className="text-sm text-red-600">{extendedRedMessages[msgIndex].main}</p>
+                  <p className="text-sm text-red-500">{extendedRedMessages[msgIndex].sub}</p>
                 </div>
               )}
               {/* 短期低調警告（直近3日のうち2日以上がしんどい以下） */}
               {!extendedRedWarning && lowMoodWarning && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3 text-sm text-orange-700 flex items-start gap-2">
                   <span>🌸</span>
-                  <span>最近しんどそうです。無理しないで、ゆっくり休んでくださいね。</span>
+                  <span>{lowMoodMessages[msgIndex]}</span>
                 </div>
               )}
 
