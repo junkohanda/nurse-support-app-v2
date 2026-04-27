@@ -169,11 +169,11 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     { key: 'red',     bg: '#fecaca', cls: 'bg-red-100 text-red-800 border-red-300' },
     { key: 'lime',    bg: '#d9f99d', cls: 'bg-lime-100 text-lime-800 border-lime-300' },
     { key: 'sky',     bg: '#e0f2fe', cls: 'bg-sky-100 text-sky-800 border-sky-300' },
-    { key: 'zinc',    bg: '#f4f4f5', cls: 'bg-zinc-100 text-zinc-800 border-zinc-300' },
-    { key: 'fuchsia', bg: '#f5d0fe', cls: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
-    { key: 'rose',    bg: '#ffe4e6', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
-    { key: 'stone',   bg: '#e7e5e4', cls: 'bg-stone-100 text-stone-800 border-stone-300' },
-    { key: 'slate',   bg: '#e2e8f0', cls: 'bg-slate-100 text-slate-800 border-slate-300' },
+    { key: 'hotpink', bg: '#f0abfc', cls: 'bg-fuchsia-300 text-fuchsia-900 border-fuchsia-400' },
+    { key: 'cream',   bg: '#fffbeb', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { key: 'peach',   bg: '#fed7aa', cls: 'bg-orange-200 text-orange-800 border-orange-300' },
+    { key: 'blue',    bg: '#93c5fd', cls: 'bg-blue-300 text-blue-900 border-blue-400' },
+    { key: 'gray',    bg: '#d1d5db', cls: 'bg-gray-300 text-gray-700 border-gray-400' },
   ];
 
   const getShiftTypes = () => {
@@ -970,7 +970,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordMessage, setPasswordMessage] = useState('');
     const [passwordError, setPasswordError] = useState('');
-    const [newShift, setNewShift] = useState({ label: '', start: '08:00', end: '17:00', color: 'rose' });
+    const [newShift, setNewShift] = useState({ label: '', start: '08:00', end: '17:00', color: 'red' });
 
     const handlePasswordChange = async () => {
       setPasswordMessage(''); setPasswordError('');
