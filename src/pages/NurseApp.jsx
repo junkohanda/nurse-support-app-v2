@@ -37,6 +37,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [isLoadingNews, setIsLoadingNews] = useState(false);
   const [todayMood, setTodayMood] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
+  const [activeShiftType, setActiveShiftType] = useState(null);
 
   const initialTerms = [
     { term: 'BP',   full_name: 'Blood Pressure',                      meaning: '血圧' },
@@ -399,9 +400,16 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const formatDateKey = (year, month, day) =>
       `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    const handleDayClick = (day) => {
+    const handleDayClick = async (day) => {
       if (!day) return;
-      setSelectedDate(formatDateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day));
+      const dateKey = formatDateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      if (activeShiftType === 'clear') {
+        await clearShift(dateKey);
+      } else if (activeShiftType) {
+        await selectShift(dateKey, activeShiftType);
+      } else {
+        setSelectedDate(selectedDate === dateKey ? null : dateKey);
+      }
     };
 
     const selectShift = async (dateKey, shiftId) => {
@@ -464,15 +472,33 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
           </div>
-          <div className="mb-3 flex gap-2 flex-wrap text-xs">
-            {shiftTypes.map(type => {
-              const time = userSettings.shiftTimes[type.id];
-              return (
-                <span key={type.id} className={`px-2 py-1 rounded border ${type.color}`}>
-                  {type.label} {time && type.id !== 'off' ? `(${time.start}-${time.end})` : ''}
-                </span>
-              );
-            })}
+          {/* シフト種別パレット（塗り絵モード） */}
+          <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
+            <p className="text-xs text-indigo-600 font-semibold mb-2">① 種別を選ぶ → ② 日付をポンポンタップ</p>
+            <div className="flex flex-wrap gap-2">
+              {shiftTypes.map(type => {
+                const isActive = activeShiftType === type.id;
+                return (
+                  <button key={type.id}
+                    onClick={() => setActiveShiftType(isActive ? null : type.id)}
+                    className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${isActive ? type.color + ' border-current shadow-md scale-105' : 'bg-white text-gray-500 border-gray-200'}`}>
+                    {type.label}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setActiveShiftType(activeShiftType === 'clear' ? null : 'clear')}
+                className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${activeShiftType === 'clear' ? 'bg-gray-300 text-gray-700 border-gray-500 shadow-md scale-105' : 'bg-white text-gray-400 border-gray-200'}`}>
+                消去
+              </button>
+            </div>
+            {activeShiftType && (
+              <p className="text-xs text-indigo-700 mt-2 font-semibold">
+                {activeShiftType === 'clear'
+                  ? '🗑 消去モード — 日付をタップして削除'
+                  : `✅ 「${shiftTypes.find(t => t.id === activeShiftType)?.label}」を選択中 — 日付をポンポンタップ`}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {['日','月','火','水','木','金','土'].map(day => (
@@ -495,7 +521,9 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               );
             })}
           </div>
-          <div className="mt-4 text-xs text-gray-600 text-center">日付をタップしてシフトをポンと選ぶ</div>
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            {activeShiftType ? '日付をポンポンタップ' : '種別を選んでから日付をタップ、または日付を直接タップ'}
+          </div>
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
