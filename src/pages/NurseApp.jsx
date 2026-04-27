@@ -38,6 +38,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [todayMood, setTodayMood] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
   const [activeShiftType, setActiveShiftType] = useState(null);
+  const [shiftSubTab, setShiftSubTab] = useState('input');
   const [seqDate, setSeqDate] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -476,7 +477,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
     const nightShiftMessage = getNightShiftMessage();
 
-    return (
+    const CalendarView = () => (
       <div className="space-y-4">
         {nightShiftMessage && (
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-indigo-800 text-sm flex items-start gap-2">
@@ -491,8 +492,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
           </div>
           <div className="grid grid-cols-7 gap-1">
-            {['日','月','火','水','木','金','土'].map(day => (
-              <div key={day} className="text-center font-semibold text-sm py-2 text-gray-600">{day}</div>
+            {['日','月','火','水','木','金','土'].map(d => (
+              <div key={d} className="text-center font-semibold text-sm py-2 text-gray-600">{d}</div>
             ))}
             {days.map((day, index) => {
               if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
@@ -503,7 +504,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const isSeqCursor = dateKey === seqDate;
               const hasTodos = getTodosForDate(dateKey).length > 0;
               return (
-                <button key={day} onClick={() => handleDayClick(day)}
+                <button key={day} onClick={() => { handleDayClick(day); setShiftSubTab('input'); }}
                   className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-sm font-semibold">{day}</div>
                   {shiftInfo && <div className="text-xs mt-0.5">{shiftInfo.label}</div>}
@@ -512,7 +513,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               );
             })}
           </div>
-          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップしてカーソルを移動できます</div>
+          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップすると入力画面に移動します</div>
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
@@ -531,33 +532,60 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
             </div>
           )}
         </div>
-        {/* シフト入力パネル（常に表示） */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <div className="text-center mb-3">
-            <div className="font-bold text-base text-indigo-900">
+      </div>
+    );
+
+    const InputView = () => (
+      <div className="space-y-4">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20} /></button>
+            <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
+          </div>
+          <div className="text-center mb-4 py-3 bg-indigo-50 rounded-lg">
+            <div className="font-bold text-xl text-indigo-900">
               {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
             </div>
             {shifts[seqDate] ? (
               <span className={`text-xs px-2 py-0.5 rounded font-semibold ${shiftTypes.find(s => s.id === shifts[seqDate])?.color}`}>
-                {shiftTypes.find(s => s.id === shifts[seqDate])?.label}
+                {shiftTypes.find(s => s.id === shifts[seqDate])?.label} 入力済み
               </span>
             ) : (
               <span className="text-xs text-gray-400">未入力</span>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-2">
+          <div className="grid grid-cols-3 gap-3 mb-3">
             {shiftTypes.map(shift => (
               <button key={shift.id} onClick={() => applyShiftAndAdvance(shift.id)}
-                className={`py-3 rounded-lg border-2 text-sm font-bold transition-all active:scale-95 ${shift.color} hover:opacity-80`}>
+                className={`py-4 rounded-xl border-2 text-sm font-bold transition-all active:scale-95 ${shift.color} hover:opacity-80 shadow-sm`}>
                 {shift.label}
               </button>
             ))}
           </div>
           <button onClick={() => applyShiftAndAdvance('clear')}
-            className="w-full py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-400 font-medium hover:bg-gray-50 active:scale-95">
-            この日を削除して次へ
+            className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm text-gray-400 font-medium hover:bg-gray-50 active:scale-95">
+            この日を削除して次へ →
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-3">カレンダーから日付を選んでカーソルを移動できます</p>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-4">
+        {/* サブタブ */}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setShiftSubTab('calendar')}
+            className={`py-2 rounded-lg font-semibold text-sm transition ${shiftSubTab === 'calendar' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            カレンダー
+          </button>
+          <button onClick={() => setShiftSubTab('input')}
+            className={`py-2 rounded-lg font-semibold text-sm transition ${shiftSubTab === 'input' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            シフト入力
           </button>
         </div>
+        {shiftSubTab === 'calendar' ? <CalendarView /> : <InputView />}
       </div>
     );
   };
