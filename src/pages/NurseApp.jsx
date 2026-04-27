@@ -38,6 +38,13 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [todayMood, setTodayMood] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
   const [activeShiftType, setActiveShiftType] = useState(null);
+  const [seqDate, setSeqDate] = useState(null);
+
+  const shiftSeqDate = (dateStr, delta) => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + delta);
+    return d.toISOString().split('T')[0];
+  };
 
   const initialTerms = [
     { term: 'BP',   full_name: 'Blood Pressure',                      meaning: '血圧' },
@@ -474,32 +481,86 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
           </div>
           {/* シフト種別パレット（塗り絵モード） */}
           <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
-            <p className="text-xs text-indigo-600 font-semibold mb-2">① 種別を選ぶ → ② 日付をポンポンタップ</p>
-            <div className="flex flex-wrap gap-2">
-              {shiftTypes.map(type => {
-                const isActive = activeShiftType === type.id;
-                return (
-                  <button key={type.id}
-                    onClick={() => setActiveShiftType(isActive ? null : type.id)}
-                    className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${isActive ? type.color + ' border-current shadow-md scale-105' : 'bg-white text-gray-500 border-gray-200'}`}>
-                    {type.label}
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-indigo-600 font-semibold">① 種別を選ぶ → ② 日付をポンポンタップ</p>
               <button
-                onClick={() => setActiveShiftType(activeShiftType === 'clear' ? null : 'clear')}
-                className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${activeShiftType === 'clear' ? 'bg-gray-300 text-gray-700 border-gray-500 shadow-md scale-105' : 'bg-white text-gray-400 border-gray-200'}`}>
-                消去
+                onClick={() => {
+                  if (seqDate) {
+                    setSeqDate(null);
+                  } else {
+                    setActiveShiftType(null);
+                    setSeqDate(`${year}-${String(month + 1).padStart(2, '0')}-01`);
+                  }
+                }}
+                className={`px-3 py-1 rounded-lg border-2 text-xs font-bold transition-all ${seqDate ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-300'}`}>
+                {seqDate ? '終了' : '順番入力'}
               </button>
             </div>
-            {activeShiftType && (
-              <p className="text-xs text-indigo-700 mt-2 font-semibold">
-                {activeShiftType === 'clear'
-                  ? '🗑 消去モード — 日付をタップして削除'
-                  : `✅ 「${shiftTypes.find(t => t.id === activeShiftType)?.label}」を選択中 — 日付をポンポンタップ`}
-              </p>
+            {!seqDate && (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {shiftTypes.map(type => {
+                    const isActive = activeShiftType === type.id;
+                    return (
+                      <button key={type.id}
+                        onClick={() => setActiveShiftType(isActive ? null : type.id)}
+                        className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${isActive ? type.color + ' border-current shadow-md scale-105' : 'bg-white text-gray-500 border-gray-200'}`}>
+                        {type.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setActiveShiftType(activeShiftType === 'clear' ? null : 'clear')}
+                    className={`px-3 py-2 rounded-lg border-2 text-sm font-bold transition-all ${activeShiftType === 'clear' ? 'bg-gray-300 text-gray-700 border-gray-500 shadow-md scale-105' : 'bg-white text-gray-400 border-gray-200'}`}>
+                    消去
+                  </button>
+                </div>
+                {activeShiftType && (
+                  <p className="text-xs text-indigo-700 mt-2 font-semibold">
+                    {activeShiftType === 'clear'
+                      ? '🗑 消去モード — 日付をタップして削除'
+                      : `✅ 「${shiftTypes.find(t => t.id === activeShiftType)?.label}」を選択中 — 日付をポンポンタップ`}
+                  </p>
+                )}
+              </>
             )}
           </div>
+
+          {/* 順番入力パネル */}
+          {seqDate && (
+            <div className="mb-4 bg-white border-2 border-indigo-300 rounded-xl p-4 shadow">
+              <div className="flex items-center justify-between mb-3">
+                <button onClick={() => setSeqDate(shiftSeqDate(seqDate, -1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft size={20} /></button>
+                <div className="text-center">
+                  <div className="font-bold text-lg text-indigo-900">
+                    {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
+                  </div>
+                  {shifts[seqDate] ? (
+                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${shiftTypes.find(s => s.id === shifts[seqDate])?.color}`}>
+                      {shiftTypes.find(s => s.id === shifts[seqDate])?.label} 入力済み
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">未入力</span>
+                  )}
+                </div>
+                <button onClick={() => setSeqDate(shiftSeqDate(seqDate, 1))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight size={20} /></button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {shiftTypes.map(shift => (
+                  <button key={shift.id} onClick={async () => {
+                    await selectShift(seqDate, shift.id);
+                    setSeqDate(shiftSeqDate(seqDate, 1));
+                  }} className={`py-3 rounded-lg border-2 text-sm font-bold transition-all ${shift.color} hover:opacity-80`}>
+                    {shift.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setSeqDate(shiftSeqDate(seqDate, 1))}
+                className="w-full py-2 rounded-lg border-2 border-gray-200 text-sm text-gray-500 font-medium hover:bg-gray-50">
+                スキップ（次の日へ）→
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-7 gap-1">
             {['日','月','火','水','木','金','土'].map(day => (
               <div key={day} className="text-center font-semibold text-sm py-2 text-gray-600">{day}</div>
@@ -510,10 +571,11 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const shiftType = shifts[dateKey];
               const shiftInfo = shiftTypes.find(s => s.id === shiftType);
               const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+              const isSeqCursor = dateKey === seqDate;
               const hasTodos = getTodosForDate(dateKey).length > 0;
               return (
                 <button key={day} onClick={() => handleDayClick(day)}
-                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-sm font-semibold">{day}</div>
                   {shiftInfo && <div className="text-xs mt-0.5">{shiftInfo.label}</div>}
                   {hasTodos && <div className="absolute bottom-1 right-1 w-2 h-2 bg-black rounded-full"></div>}
