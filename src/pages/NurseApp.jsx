@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import html2canvas from 'html2canvas';
 import {
   Calendar, BookOpen, Clock, Plus, Search, Trash2, Edit2, Save, X,
-  ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut
+  ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut, Share2
 } from 'lucide-react';
 
 const STAMPS = [
@@ -611,6 +612,31 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
     const nightShiftMessage = getNightShiftMessage();
 
+    const shareCalendarImage = async () => {
+      const el = document.getElementById('shift-calendar-capture');
+      if (!el) return;
+      try {
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const fileName = `シフト_${year}年${month + 1}月.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: fileName, files: [file] });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        console.error('Share error:', err);
+      }
+    };
+
     const CalendarView = () => (
       <div className="space-y-4">
         {nightShiftMessage && (
@@ -620,40 +646,49 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
           </div>
         )}
         <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20} /></button>
-            <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
+          {/* キャプチャ対象（シェア画像に含まれる範囲） */}
+          <div id="shift-calendar-capture" className="bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20} /></button>
+              <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
+              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {['日','月','火','水','木','金','土'].map(d => (
+                <div key={d} className="text-center font-semibold text-sm py-2 text-gray-600">{d}</div>
+              ))}
+              {days.map((day, index) => {
+                if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
+                const dateKey = formatDateKey(year, month, day);
+                const shiftType = shifts[dateKey];
+                const shiftInfo = shiftTypes.find(s => s.id === shiftType);
+                const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+                const isSelected = calendarSelectedDate === dateKey;
+                const hasTodos = getTodosForDate(dateKey).length > 0;
+                const dayEvents = calendarEvents[dateKey] || [];
+                const ringClass = isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-400' : '';
+                return (
+                  <button key={day} onClick={() => handleCalendarDayClick(day)}
+                    className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${ringClass} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                    <div className="text-sm font-semibold">{day}</div>
+                    {shiftInfo && <div className="text-xs mt-0.5 truncate leading-none">{shiftInfo.label}</div>}
+                    {dayEvents.length > 0 && (
+                      <div className="absolute top-0 right-0 text-xs leading-none">{dayEvents[0].stamp || '📌'}</div>
+                    )}
+                    {hasTodos && (
+                      <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-7 gap-1">
-            {['日','月','火','水','木','金','土'].map(d => (
-              <div key={d} className="text-center font-semibold text-sm py-2 text-gray-600">{d}</div>
-            ))}
-            {days.map((day, index) => {
-              if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
-              const dateKey = formatDateKey(year, month, day);
-              const shiftType = shifts[dateKey];
-              const shiftInfo = shiftTypes.find(s => s.id === shiftType);
-              const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
-              const isSelected = calendarSelectedDate === dateKey;
-              const hasTodos = getTodosForDate(dateKey).length > 0;
-              const dayEvents = calendarEvents[dateKey] || [];
-              const ringClass = isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-400' : '';
-              return (
-                <button key={day} onClick={() => handleCalendarDayClick(day)}
-                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${ringClass} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
-                  <div className="text-sm font-semibold">{day}</div>
-                  {shiftInfo && <div className="text-xs mt-0.5 truncate leading-none">{shiftInfo.label}</div>}
-                  {dayEvents.length > 0 && (
-                    <div className="absolute top-0 right-0 text-xs leading-none">{dayEvents[0].stamp || '📌'}</div>
-                  )}
-                  {hasTodos && (
-                    <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+
+          {/* シェアボタン */}
+          <button onClick={shareCalendarImage}
+            className="w-full mt-3 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-600 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-50 active:scale-95 transition">
+            <Share2 size={16} /> この月を共有・保存
+          </button>
 
           {/* 選択日アクションバー */}
           {calendarSelectedDate ? (
