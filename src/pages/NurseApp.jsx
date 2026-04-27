@@ -501,11 +501,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const shiftType = shifts[dateKey];
               const shiftInfo = shiftTypes.find(s => s.id === shiftType);
               const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
-              const isSeqCursor = dateKey === seqDate;
               const hasTodos = getTodosForDate(dateKey).length > 0;
               return (
                 <button key={day} onClick={() => handleDayClick(day)}
-                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                  className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-sm font-semibold">{day}</div>
                   {shiftInfo && <div className="text-xs mt-0.5">{shiftInfo.label}</div>}
                   {hasTodos && <div className="absolute bottom-1 right-1 w-2 h-2 bg-black rounded-full"></div>}
@@ -556,7 +555,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const isSeqCursor = dateKey === seqDate;
               return (
                 <button key={day} onClick={() => handleDayClick(day)}
-                  className={`aspect-square border rounded p-0.5 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-400' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                  className={`aspect-square border rounded p-0.5 transition relative ${isSeqCursor ? 'ring-2 ring-indigo-500' : isToday ? 'ring-2 ring-blue-400' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-xs font-semibold">{day}</div>
                   {shiftInfo && <div className="text-xs leading-none">{shiftInfo.label}</div>}
                 </button>
