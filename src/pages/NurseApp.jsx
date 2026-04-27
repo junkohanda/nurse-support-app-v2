@@ -504,7 +504,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               const isSeqCursor = dateKey === seqDate;
               const hasTodos = getTodosForDate(dateKey).length > 0;
               return (
-                <button key={day} onClick={() => { handleDayClick(day); setShiftSubTab('input'); }}
+                <button key={day} onClick={() => handleDayClick(day)}
                   className={`aspect-square border rounded p-1 hover:bg-gray-50 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-500' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
                   <div className="text-sm font-semibold">{day}</div>
                   {shiftInfo && <div className="text-xs mt-0.5">{shiftInfo.label}</div>}
@@ -513,7 +513,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               );
             })}
           </div>
-          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップすると入力画面に移動します</div>
+          <div className="mt-2 text-xs text-gray-400 text-center">日付をタップしてカーソルを移動できます</div>
           {overdueTodos.length > 0 && (
             <div className={`mt-4 border rounded p-3 ${overdueTodos.some(t => t.priority === 'high') ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-300'}`}>
               <div className="flex items-center gap-2 text-red-700 mb-2">
@@ -538,11 +538,33 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const InputView = () => (
       <div className="space-y-4">
         <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20} /></button>
-            <h3 className="font-bold text-lg">{year}年 {month + 1}月</h3>
+            <h3 className="font-bold text-base">{year}年 {month + 1}月</h3>
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20} /></button>
           </div>
+          <div className="grid grid-cols-7 gap-1 mb-3">
+            {['日','月','火','水','木','金','土'].map(d => (
+              <div key={d} className="text-center font-semibold text-xs py-1 text-gray-500">{d}</div>
+            ))}
+            {days.map((day, index) => {
+              if (!day) return <div key={`empty-${index}`} className="aspect-square" />;
+              const dateKey = formatDateKey(year, month, day);
+              const shiftType = shifts[dateKey];
+              const shiftInfo = shiftTypes.find(s => s.id === shiftType);
+              const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+              const isSeqCursor = dateKey === seqDate;
+              return (
+                <button key={day} onClick={() => handleDayClick(day)}
+                  className={`aspect-square border rounded p-0.5 transition relative ${isSeqCursor ? 'ring-4 ring-indigo-500 ring-offset-1' : isToday ? 'ring-2 ring-blue-400' : ''} ${shiftInfo ? shiftInfo.color : 'bg-white'}`}>
+                  <div className="text-xs font-semibold">{day}</div>
+                  {shiftInfo && <div className="text-xs leading-none">{shiftInfo.label}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow">
           <div className="text-center mb-4 py-3 bg-indigo-50 rounded-lg">
             <div className="font-bold text-xl text-indigo-900">
               {new Date(seqDate + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
@@ -563,11 +585,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               </button>
             ))}
           </div>
-          <button onClick={() => applyShiftAndAdvance('clear')}
+          <button onClick={() => setSeqDate(shiftSeqDate(seqDate, 1))}
             className="w-full py-3 rounded-xl border-2 border-gray-200 text-sm text-gray-400 font-medium hover:bg-gray-50 active:scale-95">
-            この日を削除して次へ →
+            スキップ（次の日へ）→
           </button>
-          <p className="text-xs text-gray-400 text-center mt-3">カレンダーから日付を選んでカーソルを移動できます</p>
         </div>
       </div>
     );
