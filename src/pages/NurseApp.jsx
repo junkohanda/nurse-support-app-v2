@@ -108,6 +108,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [moodHistory, setMoodHistory] = useState([]);
 
   const shiftSeqDate = (dateStr, delta) => {
     const d = new Date(dateStr);
@@ -142,7 +143,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const loadData = async () => {
     const uid = user.id;
     const today = new Date().toISOString().split('T')[0];
-    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes, eventsRes] = await Promise.all([
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes, eventsRes, moodHistoryRes] = await Promise.all([
       supabase.from('diaries').select('*').eq('user_id', uid).order('date', { ascending: false }),
       supabase.from('shifts').select('*').eq('user_id', uid),
       supabase.from('medical_terms').select('*').eq('user_id', uid).order('term'),
@@ -153,6 +157,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
       supabase.from('hidden_templates').select('*').eq('user_id', uid),
       supabase.from('mood_logs').select('*').eq('user_id', uid).eq('date', today).maybeSingle(),
       supabase.from('calendar_events').select('*').eq('user_id', uid).order('created_at'),
+      supabase.from('mood_logs').select('date,mood').eq('user_id', uid).gte('date', thirtyDaysAgoStr).order('date'),
     ]);
 
     setDiaries(diariesRes.data || []);
@@ -200,6 +205,9 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
     // 今日の気分ログ
     if (moodRes.data) setTodayMood(moodRes.data.mood);
+
+    // 気分履歴
+    setMoodHistory(moodHistoryRes.data || []);
 
     // カレンダーイベント
     const eventsMap = {};
@@ -419,7 +427,31 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
         { onConflict: 'user_id,date' }
       );
       setTodayMood(value);
+      setMoodHistory(prev => {
+        const filtered = prev.filter(m => m.date !== today);
+        return [...filtered, { date: today, mood: value }].sort((a, b) => a.date.localeCompare(b.date));
+      });
     };
+
+    const MOOD_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#facc15', 4: '#86efac', 5: '#22c55e' };
+
+    const days30 = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const log = moodHistory.find(m => m.date === dateStr);
+      return { date: dateStr, mood: log?.mood || null };
+    });
+
+    const loggedDays = days30.filter(d => d.mood !== null);
+    const avgAllNum = loggedDays.length > 0
+      ? loggedDays.reduce((sum, d) => sum + d.mood, 0) / loggedDays.length : null;
+    const recent7 = days30.slice(-7).filter(d => d.mood !== null);
+    const avg7Num = recent7.length > 0
+      ? recent7.reduce((sum, d) => sum + d.mood, 0) / recent7.length : null;
+    const avg7Color = avg7Num
+      ? (avg7Num < 2.5 ? '#ef4444' : avg7Num < 3.5 ? '#f97316' : '#22c55e') : '#6366f1';
+    const lowMoodWarning = days30.slice(-3).filter(d => d.mood !== null && d.mood <= 2).length >= 2;
 
     return (
       <div className="space-y-4">
@@ -442,6 +474,75 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
                 </button>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* 気分グラフ */}
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold mb-3 text-indigo-800">気分の記録（過去30日）</h3>
+          {loggedDays.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-4">まだ記録がありません。毎日の気分を記録してみましょう。</p>
+          ) : (
+            <>
+              {/* バーンアウト警告 */}
+              {lowMoodWarning && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3 text-sm text-orange-700 flex items-start gap-2">
+                  <span>🌸</span>
+                  <span>最近しんどそうです。無理しないで、ゆっくり休んでくださいね。</span>
+                </div>
+              )}
+
+              {/* 統計 */}
+              <div className="flex gap-6 mb-4">
+                {avgAllNum && (
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-indigo-700">{avgAllNum.toFixed(1)}</div>
+                    <div className="text-xs text-gray-500">全体平均</div>
+                  </div>
+                )}
+                {avg7Num && (
+                  <div className="text-center">
+                    <div className="text-xl font-bold" style={{ color: avg7Color }}>{avg7Num.toFixed(1)}</div>
+                    <div className="text-xs text-gray-500">直近7日</div>
+                  </div>
+                )}
+                <div className="text-center">
+                  <div className="text-xl">{moods.find(m => m.value === Math.round(avgAllNum))?.emoji || '😐'}</div>
+                  <div className="text-xs text-gray-500">全体の傾向</div>
+                </div>
+              </div>
+
+              {/* バーチャート */}
+              <div className="flex items-end gap-px h-16 mb-1">
+                {days30.map(d => (
+                  <div key={d.date} className="flex-1 flex flex-col justify-end h-full">
+                    {d.mood ? (
+                      <div
+                        style={{ height: `${(d.mood / 5) * 100}%`, backgroundColor: MOOD_COLORS[d.mood] }}
+                        className="w-full rounded-t-sm"
+                        title={`${d.date}: ${moods.find(m => m.value === d.mood)?.label}`}
+                      />
+                    ) : (
+                      <div className="w-full h-1 bg-gray-100 rounded-sm" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mb-3">
+                <span>30日前</span>
+                <span>今日</span>
+              </div>
+
+              {/* 凡例 */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {moods.map(m => (
+                  <span key={m.value} className="flex items-center gap-1 text-xs text-gray-500">
+                    <span style={{ backgroundColor: MOOD_COLORS[m.value] }} className="w-2.5 h-2.5 rounded-sm inline-block" />
+                    {m.emoji} {m.label}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
