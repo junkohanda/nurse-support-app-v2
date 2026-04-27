@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import AuthPage from './pages/AuthPage'
 import NurseApp from './pages/NurseApp'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 
 function App() {
   const { user, loading, signOut } = useAuth()
+  const [showPrivacy, setShowPrivacy] = useState(false)
 
   if (loading) {
     return (
@@ -13,11 +16,15 @@ function App() {
     )
   }
 
-  if (!user) {
-    return <AuthPage />
+  if (showPrivacy) {
+    return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
   }
 
-  return <NurseApp user={user} onSignOut={signOut} />
+  if (!user) {
+    return <AuthPage onShowPrivacy={() => setShowPrivacy(true)} />
+  }
+
+  return <NurseApp user={user} onSignOut={signOut} onShowPrivacy={() => setShowPrivacy(true)} />
 }
 
 export default App

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const AuthPage = () => {
+const AuthPage = ({ onShowPrivacy }) => {
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -110,6 +110,12 @@ const AuthPage = () => {
               </button>
             </p>
           )}
+        </div>
+
+        <div className="mt-4 text-center">
+          <button onClick={onShowPrivacy} className="text-xs text-gray-400 hover:underline">
+            プライバシーポリシー
+          </button>
         </div>
       </div>
     </div>

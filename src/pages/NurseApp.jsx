@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut
 } from 'lucide-react';
 
-const NurseApp = ({ user, onSignOut }) => {
+const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [activeTab, setActiveTab] = useState('diary');
   const [diaries, setDiaries] = useState([]);
   const [shifts, setShifts] = useState({});
@@ -1016,9 +1016,14 @@ const NurseApp = ({ user, onSignOut }) => {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-indigo-900">看護師サポートアプリ</h1>
-          <button onClick={onSignOut} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
-            <LogOut size={16} /> ログアウト
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={onShowPrivacy} className="text-xs text-gray-400 hover:underline">
+              プライバシーポリシー
+            </button>
+            <button onClick={onSignOut} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <LogOut size={16} /> ログアウト
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-6">
