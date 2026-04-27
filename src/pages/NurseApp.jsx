@@ -168,10 +168,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const SHIFT_COLORS = [
     { key: 'red',     bg: '#fecaca', cls: 'bg-red-100 text-red-800 border-red-300' },
     { key: 'lime',    bg: '#d9f99d', cls: 'bg-lime-100 text-lime-800 border-lime-300' },
-    { key: 'teal',    bg: '#99f6e4', cls: 'bg-teal-100 text-teal-800 border-teal-300' },
+    { key: 'sky',     bg: '#e0f2fe', cls: 'bg-sky-100 text-sky-800 border-sky-300' },
     { key: 'blue',    bg: '#bfdbfe', cls: 'bg-blue-100 text-blue-800 border-blue-300' },
     { key: 'fuchsia', bg: '#f5d0fe', cls: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300' },
-    { key: 'emerald', bg: '#a7f3d0', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+    { key: 'rose',    bg: '#ffe4e6', cls: 'bg-rose-100 text-rose-800 border-rose-300' },
     { key: 'stone',   bg: '#e7e5e4', cls: 'bg-stone-100 text-stone-800 border-stone-300' },
     { key: 'slate',   bg: '#e2e8f0', cls: 'bg-slate-100 text-slate-800 border-slate-300' },
   ];
