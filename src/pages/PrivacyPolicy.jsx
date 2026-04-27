@@ -62,8 +62,7 @@ const PrivacyPolicy = ({ onBack }) => {
             <section>
               <h2 className="font-semibold text-gray-900 mb-2">8. お問い合わせ</h2>
               <p>個人情報の取り扱いに関するご質問・削除依頼は以下までご連絡ください。</p>
-              <p className="mt-2">運営者：Junko Handa<br />
-              メール：junko.kimura.316@gmail.com</p>
+              <p className="mt-2">メール：junko.kimura.316@gmail.com</p>
             </section>
 
             <section className="text-xs text-gray-400 pt-4 border-t">
