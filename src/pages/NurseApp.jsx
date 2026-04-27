@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import html2canvas from 'html2canvas';
 import {
   Calendar, BookOpen, Clock, Plus, Search, Trash2, Edit2, Save, X,
-  ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut, Share2
+  ChevronLeft, ChevronRight, Settings, Newspaper, RefreshCw, CheckSquare, Book, LogOut, Share2, Copy
 } from 'lucide-react';
 
 const STAMPS = [
@@ -107,6 +107,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false);
 
   const shiftSeqDate = (dateStr, delta) => {
     const d = new Date(dateStr);
@@ -612,6 +613,38 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
     const nightShiftMessage = getNightShiftMessage();
 
+    const copyShiftsFromPrevMonth = async () => {
+      const prevMonthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      const prevY = prevMonthDate.getFullYear();
+      const prevM = prevMonthDate.getMonth();
+      const prevStart = `${prevY}-${String(prevM + 1).padStart(2, '0')}-01`;
+      const currentStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+
+      const { data: prevShifts } = await supabase
+        .from('shifts').select('*')
+        .eq('user_id', user.id)
+        .gte('date', prevStart).lt('date', currentStart);
+
+      const maxDay = new Date(year, month + 1, 0).getDate();
+      const toUpsert = (prevShifts || [])
+        .map(s => ({
+          user_id: user.id,
+          date: `${year}-${String(month + 1).padStart(2, '0')}-${s.date.split('-')[2]}`,
+          shift_type: s.shift_type,
+        }))
+        .filter(s => parseInt(s.date.split('-')[2]) <= maxDay);
+
+      if (toUpsert.length > 0) {
+        await supabase.from('shifts').upsert(toUpsert, { onConflict: 'user_id,date' });
+        setShifts(prev => {
+          const next = { ...prev };
+          toUpsert.forEach(s => { next[s.date] = s.shift_type; });
+          return next;
+        });
+      }
+      setShowCopyConfirm(false);
+    };
+
     const shareCalendarImage = async () => {
       const el = document.getElementById('shift-calendar-capture');
       if (!el) return;
@@ -688,6 +721,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
           <button onClick={shareCalendarImage}
             className="w-full mt-3 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-600 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-50 active:scale-95 transition">
             <Share2 size={16} /> この月を共有・保存
+          </button>
+          <button onClick={() => setShowCopyConfirm(true)}
+            className="w-full mt-2 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 active:scale-95 transition">
+            <Copy size={16} /> 先月からシフトをコピー
           </button>
 
           {/* 選択日アクションバー */}
@@ -807,6 +844,32 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
     return (
       <div className="space-y-4">
+        {/* 先月コピー確認モーダル */}
+        {showCopyConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="font-bold text-lg mb-3">シフトをコピー</h3>
+              <p className="text-sm text-gray-700 mb-2">
+                {new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+                  .toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' })}のシフトを
+                <span className="font-semibold"> {year}年{month + 1}月</span>にコピーします。
+              </p>
+              <p className="text-xs text-red-500 mb-5">
+                ※ {year}年{month + 1}月に入力済みのシフトは上書きされます
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowCopyConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition">
+                  キャンセル
+                </button>
+                <button onClick={copyShiftsFromPrevMonth}
+                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition">
+                  コピーする
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* サブタブ */}
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setShiftSubTab('calendar')}
