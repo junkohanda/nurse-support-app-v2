@@ -70,7 +70,7 @@ const NurseApp = ({ user, onSignOut }) => {
       supabase.from('medical_terms').select('*').eq('user_id', uid).order('term'),
       supabase.from('user_settings').select('*').eq('user_id', uid).maybeSingle(),
       supabase.from('todos').select('*').eq('user_id', uid).order('due_date'),
-      supabase.from('study_notes').select('*').eq('user_id', uid),
+      supabase.from('study_notes').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
       supabase.from('diary_templates').select('*').eq('user_id', uid),
       supabase.from('hidden_templates').select('*').eq('user_id', uid),
       supabase.from('mood_logs').select('*').eq('user_id', uid).eq('date', today).maybeSingle(),
@@ -673,7 +673,7 @@ const NurseApp = ({ user, onSignOut }) => {
         content: newNote.content, review_date: newNote.reviewDate || null,
       }).select().single();
       if (!error && data) {
-        setStudyNotes(prev => [...prev, noteToState(data)]);
+        setStudyNotes(prev => [noteToState(data), ...prev]);
         if (newNote.reviewDate) {
           const { data: todoData } = await supabase.from('todos').insert({
             user_id: user.id,
