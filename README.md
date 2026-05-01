@@ -1,16 +1,49 @@
-# React + Vite
+# 看護師サポートアプリ v2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+看護師の日常業務をサポートするWebアプリです。日記・シフト管理・ToDo・勉強ノート・医療用語辞典などの機能を提供します。
 
-Currently, two official plugins are available:
+## 技術スタック
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React + Vite
+- Tailwind CSS
+- Supabase（認証・データベース）
 
-## React Compiler
+## セットアップ
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. 環境変数の設定
 
-## Expanding the ESLint configuration
+`.env.local` ファイルをプロジェクトルートに作成し、以下を記述してください：
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Supabaseダッシュボード → Project Settings → API から取得できます。
+
+### 2. Supabaseのテーブル作成
+
+`supabase_schema.sql` の内容をSupabaseダッシュボードの SQL Editor に貼り付けて実行してください。
+
+### 3. 依存パッケージのインストールと起動
+
+```bash
+npm install
+npm run dev
+```
+
+## 機能一覧
+
+| 機能 | 説明 |
+|------|------|
+| 日記 | 日付ごとに記録。テンプレートあり、気分ログ対応 |
+| シフト管理 | カレンダー表示・連続入力・画像シェア対応 |
+| ToDo | 優先度・期日設定、勉強ノートとの連携 |
+| 勉強ノート | カテゴリ別に記録、復習日設定対応 |
+| 医療用語辞典 | 略語・意味を登録・検索 |
+| 設定 | 職種・部署・シフト種別のカスタマイズ |
+
+## 注意事項
+
+- 患者氏名・ID・診断名などの個人情報は入力しないでください
+- データはSupabaseに保存されます（自分のデータのみ閲覧可能）

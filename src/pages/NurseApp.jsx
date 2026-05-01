@@ -111,11 +111,24 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
   const [moodHistory, setMoodHistory] = useState([]);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const showError = (msg) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 3000);
+  };
+
+  const toLocalDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const shiftSeqDate = (dateStr, delta) => {
     const d = new Date(dateStr);
     d.setDate(d.getDate() + delta);
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   };
 
   const initialTerms = [
@@ -164,10 +177,10 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
   const loadData = async () => {
     const uid = user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateStr(new Date());
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const thirtyDaysAgoStr = toLocalDateStr(thirtyDaysAgo);
     const [diariesRes, shiftsRes, termsRes, settingsRes, todosRes, studyRes, templatesRes, hiddenRes, moodRes, eventsRes, moodHistoryRes] = await Promise.all([
       supabase.from('diaries').select('*').eq('user_id', uid).order('date', { ascending: false }),
       supabase.from('shifts').select('*').eq('user_id', uid),
@@ -317,15 +330,17 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const saveCalendarEvent = async (stamp, title, memo) => {
     const date = calendarSelectedDate;
     if (editingEvent) {
-      await supabase.from('calendar_events').update({ stamp, title, memo }).eq('id', editingEvent.id);
+      const { error } = await supabase.from('calendar_events').update({ stamp, title, memo }).eq('id', editingEvent.id);
+      if (error) { showError('イベントの更新に失敗しました'); return; }
       setCalendarEvents(prev => ({
         ...prev,
         [date]: (prev[date] || []).map(e => e.id === editingEvent.id ? { ...e, stamp, title, memo } : e),
       }));
     } else {
-      const { data } = await supabase.from('calendar_events').insert({
+      const { data, error } = await supabase.from('calendar_events').insert({
         user_id: user.id, date, stamp, title, memo,
       }).select().single();
+      if (error) { showError('イベントの保存に失敗しました'); return; }
       if (data) {
         setCalendarEvents(prev => ({
           ...prev,
@@ -340,7 +355,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const deleteCalendarEvent = async () => {
     if (!editingEvent) return;
     const date = calendarSelectedDate;
-    await supabase.from('calendar_events').delete().eq('id', editingEvent.id);
+    const { error } = await supabase.from('calendar_events').delete().eq('id', editingEvent.id);
+    if (error) { showError('イベントの削除に失敗しました'); return; }
     setCalendarEvents(prev => ({
       ...prev,
       [date]: (prev[date] || []).filter(e => e.id !== editingEvent.id),
@@ -383,6 +399,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
   const DiaryTab = () => {
     const [newDiary, setNewDiary] = useState({ date: '', content: '' });
     const [editId, setEditId] = useState(null);
+    const [editContent, setEditContent] = useState('');
     const [showTemplates, setShowTemplates] = useState(false);
     const [newTemplate, setNewTemplate] = useState('');
 
@@ -398,12 +415,14 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
 
     const deleteDiary = async (id) => {
-      await supabase.from('diaries').delete().eq('id', id);
+      const { error } = await supabase.from('diaries').delete().eq('id', id);
+      if (error) { showError('日記の削除に失敗しました'); return; }
       setDiaries(prev => prev.filter(d => d.id !== id));
     };
 
     const updateDiary = async (id, content) => {
-      await supabase.from('diaries').update({ content }).eq('id', id);
+      const { error } = await supabase.from('diaries').update({ content }).eq('id', id);
+      if (error) { showError('日記の更新に失敗しました'); return; }
       setDiaries(prev => prev.map(d => d.id === id ? { ...d, content } : d));
       setEditId(null);
     };
@@ -423,12 +442,14 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
 
     const deleteTemplate = async (id) => {
-      await supabase.from('diary_templates').delete().eq('id', id);
+      const { error } = await supabase.from('diary_templates').delete().eq('id', id);
+      if (error) { showError('テンプレートの削除に失敗しました'); return; }
       setDiaryTemplates(prev => prev.filter(t => t.id !== id));
     };
 
     const hideDefaultTemplate = async (templateContent) => {
-      await supabase.from('hidden_templates').insert({ user_id: user.id, content: templateContent });
+      const { error } = await supabase.from('hidden_templates').insert({ user_id: user.id, content: templateContent });
+      if (error) { showError('テンプレートの非表示設定に失敗しました'); return; }
       setHiddenDefaultTemplates(prev => [...prev, templateContent]);
     };
 
@@ -443,11 +464,12 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     ];
 
     const saveMood = async (value) => {
-      const today = new Date().toISOString().split('T')[0];
-      await supabase.from('mood_logs').upsert(
+      const today = toLocalDateStr(new Date());
+      const { error } = await supabase.from('mood_logs').upsert(
         { user_id: user.id, date: today, mood: value },
         { onConflict: 'user_id,date' }
       );
+      if (error) { showError('気分の保存に失敗しました'); return; }
       setTodayMood(value);
       setMoodHistory(prev => {
         const filtered = prev.filter(m => m.date !== today);
@@ -460,7 +482,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const days30 = Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(d);
       const log = moodHistory.find(m => m.date === dateStr);
       return { date: dateStr, mood: log?.mood || null };
     });
@@ -477,7 +499,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const last7Recorded = days30.slice(-7).filter(d => d.mood !== null);
     const extendedRedWarning = last7Recorded.length >= 5 && last7Recorded.filter(d => d.mood === 1).length >= 5;
 
-    const tomorrowKey = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
+    const tomorrowKey = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return toLocalDateStr(d); })();
     const tomorrowIsOff = shifts[tomorrowKey] === 'off';
 
     const msgIndex = new Date().getDate() % 3;
@@ -655,7 +677,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               <div className="flex justify-between items-start mb-2">
                 <span className="text-sm text-gray-600">{diary.date}</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setEditId(editId === diary.id ? null : diary.id)} className="text-blue-500 hover:text-blue-700">
+                  <button onClick={() => { const next = editId === diary.id ? null : diary.id; setEditId(next); if (next) setEditContent(diary.content); }} className="text-blue-500 hover:text-blue-700">
                     {editId === diary.id ? <X size={16} /> : <Edit2 size={16} />}
                   </button>
                   <button onClick={() => deleteDiary(diary.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
@@ -663,8 +685,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
               </div>
               {editId === diary.id ? (
                 <div>
-                  <textarea defaultValue={diary.content} id={`edit-${diary.id}`} className="w-full p-2 border rounded h-24 mb-2" />
-                  <button onClick={() => updateDiary(diary.id, document.getElementById(`edit-${diary.id}`).value)}
+                  <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} className="w-full p-2 border rounded h-24 mb-2" />
+                  <button onClick={() => updateDiary(diary.id, editContent)}
                     className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 flex items-center gap-1">
                     <Save size={14} /> 更新
                   </button>
@@ -755,12 +777,12 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     const getNightShiftMessage = () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yKey = yesterday.toISOString().split('T')[0];
+      const yKey = toLocalDateStr(yesterday);
       const yShift = shifts[yKey];
       if (yShift === 'night' || yShift === 'lateNight' || yShift === 'evening') {
         return '昨日は夜勤でしたね。ゆっくり休めていますか？無理しすぎないでください。';
       }
-      const todayKey = new Date().toISOString().split('T')[0];
+      const todayKey = toLocalDateStr(new Date());
       const todayShift = shifts[todayKey];
       if (todayShift === 'night' || todayShift === 'evening') {
         return '今日は夜勤ですね。無理せず、良い勤務になりますように。';
@@ -1067,12 +1089,14 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
         setShowCelebration(true);
         setTimeout(() => setShowCelebration(false), 2000);
       }
-      await supabase.from('todos').update({ completed: !todo.completed }).eq('id', id);
+      const { error } = await supabase.from('todos').update({ completed: !todo.completed }).eq('id', id);
+      if (error) { showError('ToDoの更新に失敗しました'); return; }
       setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
     };
 
     const deleteTodo = async (id) => {
-      await supabase.from('todos').delete().eq('id', id);
+      const { error } = await supabase.from('todos').delete().eq('id', id);
+      if (error) { showError('ToDoの削除に失敗しました'); return; }
       setTodos(prev => prev.filter(t => t.id !== id));
     };
 
@@ -1186,17 +1210,19 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
     const saveEdit = async () => {
       if (!editNote?.title || !editNote?.category || !editNote?.content) return;
-      await supabase.from('study_notes').update({
+      const { error } = await supabase.from('study_notes').update({
         title: editNote.title, category: editNote.category,
         middle_category: editNote.middleCategory, small_category: editNote.smallCategory,
         content: editNote.content, review_date: editNote.reviewDate || null,
       }).eq('id', editingId);
+      if (error) { showError('勉強ノートの更新に失敗しました'); return; }
       setStudyNotes(prev => prev.map(n => n.id === editingId ? { ...editNote } : n));
       setEditingId(null); setEditNote(null);
     };
 
     const deleteNote = async (id) => {
-      await supabase.from('study_notes').delete().eq('id', id);
+      const { error } = await supabase.from('study_notes').delete().eq('id', id);
+      if (error) { showError('勉強ノートの削除に失敗しました'); return; }
       setStudyNotes(prev => prev.filter(n => n.id !== id));
     };
 
@@ -1324,7 +1350,8 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
 
     const deleteTerm = async (id) => {
-      await supabase.from('medical_terms').delete().eq('id', id);
+      const { error } = await supabase.from('medical_terms').delete().eq('id', id);
+      if (error) { showError('用語の削除に失敗しました'); return; }
       setTerms(prev => prev.filter(t => t.id !== id));
     };
 
@@ -1392,7 +1419,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
     };
 
     const handleSave = async () => {
-      await supabase.from('user_settings').upsert({
+      const { error } = await supabase.from('user_settings').upsert({
         user_id: user.id,
         profession: tempSettings.profession,
         department: tempSettings.department,
@@ -1400,6 +1427,7 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
         shift_times: tempSettings.shiftTimes,
         custom_shifts: tempSettings.customShifts || [],
       }, { onConflict: 'user_id' });
+      if (error) { showError('設定の保存に失敗しました'); return; }
       setUserSettings(tempSettings);
       alert('設定を保存しました！');
     };
@@ -1583,6 +1611,13 @@ const NurseApp = ({ user, onSignOut, onShowPrivacy }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+
+      {/* エラー通知バー */}
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-semibold">
+          ⚠️ {errorMessage}
+        </div>
+      )}
 
       {/* カレンダーイベントモーダル */}
       {showEventModal && calendarSelectedDate && (

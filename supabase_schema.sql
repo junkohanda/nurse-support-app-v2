@@ -20,6 +20,7 @@ CREATE TABLE user_settings (
     "late":      {"start": "12:00", "end": "20:30"},
     "early":     {"start": "07:00", "end": "15:30"}
   }',
+  custom_shifts JSONB DEFAULT '[]',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -82,7 +83,28 @@ CREATE TABLE medical_terms (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ⑦ 日記テンプレート（ユーザーが追加したもの）
+-- ⑦ 気分ログ
+CREATE TABLE mood_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL,
+  mood INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, date)
+);
+
+-- ⑧ カレンダーイベント
+CREATE TABLE calendar_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  date DATE NOT NULL,
+  stamp TEXT DEFAULT '📌',
+  title TEXT DEFAULT '',
+  memo TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ⑨ 日記テンプレート（ユーザーが追加したもの）
 CREATE TABLE diary_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -90,7 +112,7 @@ CREATE TABLE diary_templates (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ⑧ デフォルトテンプレートの非表示設定
+-- ⑩ デフォルトテンプレートの非表示設定
 CREATE TABLE hidden_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -102,21 +124,25 @@ CREATE TABLE hidden_templates (
 -- RLS（Row Level Security）- 自分のデータしか見えない設定
 -- =====================================================
 
-ALTER TABLE user_settings   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE diaries         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE shifts          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE todos           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE study_notes     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE medical_terms   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE diary_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE diaries          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shifts           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE todos            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_notes      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medical_terms    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mood_logs        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE diary_templates  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hidden_templates ENABLE ROW LEVEL SECURITY;
 
 -- 各テーブルのポリシー（自分のデータのみ操作可能）
-CREATE POLICY "自分のデータのみ" ON user_settings   FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON diaries         FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON shifts          FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON todos           FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON study_notes     FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON medical_terms   FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "自分のデータのみ" ON diary_templates FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON user_settings    FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON diaries          FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON shifts           FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON todos            FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON study_notes      FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON medical_terms    FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON mood_logs        FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON calendar_events  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "自分のデータのみ" ON diary_templates  FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "自分のデータのみ" ON hidden_templates FOR ALL USING (auth.uid() = user_id);
