@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useNurseApp, defaultDiaryTemplates, toLocalDateStr } from '../../context/NurseAppContext';
+
+const DRAFT_KEY = 'diary_draft';
 
 const DiaryTab = () => {
   const {
@@ -13,7 +15,18 @@ const DiaryTab = () => {
     shifts, showError,
   } = useNurseApp();
 
-  const [newDiary, setNewDiary] = useState({ date: '', content: '' });
+  const [newDiary, setNewDiary] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      return saved ? JSON.parse(saved) : { date: '', content: '' };
+    } catch {
+      return { date: '', content: '' };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(newDiary));
+  }, [newDiary]);
   const [editId, setEditId] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
@@ -27,6 +40,7 @@ const DiaryTab = () => {
     if (!error && data) {
       setDiaries(prev => [data, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date)));
       setNewDiary({ date: '', content: '' });
+      localStorage.removeItem(DRAFT_KEY);
     }
   };
 
